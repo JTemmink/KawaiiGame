@@ -18,6 +18,8 @@ function Game() {
     highScore,
     showExplosion,
     gameOver,
+    level,
+    levelColors,
     heartScale,
     isShaking,
     isPulsing,
@@ -74,11 +76,12 @@ function Game() {
   return (
     <ScreenShake shake={screenShake}>
       <div
-        className={`min-h-screen min-h-dvh flex flex-col items-center justify-between p-6 transition-all duration-500 ${
-          bonusActive
-            ? 'bg-gradient-to-br from-amber-50 via-yellow-100 to-amber-50'
-            : 'bg-gradient-to-br from-pink-light to-blue-light'
-        }`}
+        className="min-h-screen min-h-dvh flex flex-col items-center justify-between p-6 transition-all duration-500"
+        style={{
+          background: bonusActive
+            ? 'linear-gradient(to bottom right, #FFFBEB, #FEF3C7, #FFFBEB)'
+            : `linear-gradient(to bottom right, ${levelColors.from}, ${levelColors.to})`,
+        }}
       >
         {/* Bonus mode glow overlay */}
         {bonusActive && (
@@ -90,9 +93,9 @@ function Game() {
           />
         )}
 
-        {/* Score */}
+        {/* Score + Level */}
         <div className="z-10">
-          <ScoreDisplay score={score} highScore={highScore} bonusActive={bonusActive} />
+          <ScoreDisplay score={score} highScore={highScore} bonusActive={bonusActive} level={level} />
         </div>
 
         {/* Game area */}

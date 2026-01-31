@@ -14,6 +14,7 @@ import {
   SPEED_INCREASE_THRESHOLD,
   SPEED_INCREASE_FACTOR,
   MIN_SHRINK_INTERVAL_MS,
+  LEVEL_COLORS,
 } from '../utils/constants';
 
 export function useGameState() {
@@ -37,6 +38,8 @@ export function useGameState() {
   }, []);
 
   // Computed values
+  const level = Math.floor(score / SPEED_INCREASE_THRESHOLD) + 1;
+  const levelColors = LEVEL_COLORS[Math.min(level - 1, LEVEL_COLORS.length - 1)];
   const heartScale = HEART_MIN_SCALE + (clicks / CLICKS_TO_EXPLOSION) * (HEART_MAX_SCALE - HEART_MIN_SCALE);
   const isShaking = clicks >= SHAKE_THRESHOLD && clicks < PULSE_THRESHOLD;
   const isPulsing = clicks >= PULSE_THRESHOLD;
@@ -60,7 +63,7 @@ export function useGameState() {
     setBonusTimeLeft(BONUS_DURATION_SECONDS);
   }, [bonusActive]);
 
-  // Bonus timer countdown
+  // Bonus timer countdown - reset clicks to 0 when bonus ends
   useEffect(() => {
     if (!bonusActive) return;
 
@@ -68,6 +71,7 @@ export function useGameState() {
       setBonusTimeLeft((prev) => {
         if (prev <= 1) {
           setBonusActive(false);
+          setClicks(0); // Reset clicks when bonus ends
           return 0;
         }
         return prev - 1;
@@ -161,6 +165,8 @@ export function useGameState() {
     gameOver,
     
     // Computed
+    level,
+    levelColors,
     heartScale,
     isShaking,
     isPulsing,

@@ -1,9 +1,19 @@
 import { motion } from 'framer-motion';
 
-function ScoreDisplay({ score, highScore, bonusActive }) {
+function ScoreDisplay({ score, highScore, bonusActive, level }) {
   return (
     <div className="text-center">
-      <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Score</p>
+      <div className="flex items-center justify-center gap-4 mb-1">
+        <p className="text-xs uppercase tracking-widest text-gray-400">Score</p>
+        <motion.span
+          key={level}
+          initial={{ scale: 1.3 }}
+          animate={{ scale: 1 }}
+          className="px-3 py-1 rounded-full bg-pink-primary/20 text-pink-primary text-xs font-bold"
+        >
+          Level {level}
+        </motion.span>
+      </div>
       <motion.p
         className={`text-5xl sm:text-6xl font-black bg-clip-text text-transparent ${
           bonusActive
