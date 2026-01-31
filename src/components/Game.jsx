@@ -15,6 +15,7 @@ import NameInputModal from './NameInputModal';
 import Leaderboard from './Leaderboard';
 import BonusAnnouncement from './BonusAnnouncement';
 import Shop from './Shop';
+import CollectionBook from './CollectionBook';
 import { NewHighScoreCelebration, RankUpCelebration, LevelUpCelebration } from './Celebrations';
 
 function Game() {
@@ -51,6 +52,7 @@ function Game() {
   const [playerName, setPlayerName] = useLocalStorage(PLAYER_NAME_KEY, '');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showCollection, setShowCollection] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [showBonusAnnouncement, setShowBonusAnnouncement] = useState(false);
   const [showHighScoreCelebration, setShowHighScoreCelebration] = useState(false);
@@ -183,12 +185,23 @@ function Game() {
             />
           )}
 
-          <button
-            onClick={() => setShowLeaderboard(true)}
-            className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/80 shadow-lg hover:bg-white transition-colors"
-          >
-            🏆
-          </button>
+          {/* Top buttons */}
+          <div className="absolute top-4 right-4 z-20 flex gap-2">
+            <button
+              onClick={() => setShowCollection(true)}
+              className="p-2 rounded-full bg-white/80 shadow-lg hover:bg-white transition-colors text-xl"
+              title="Verzamelboek"
+            >
+              📖
+            </button>
+            <button
+              onClick={() => setShowLeaderboard(true)}
+              className="p-2 rounded-full bg-white/80 shadow-lg hover:bg-white transition-colors text-xl"
+              title="Leaderboard"
+            >
+              🏆
+            </button>
+          </div>
 
           <div className="z-10">
             <ScoreDisplay 
@@ -266,6 +279,12 @@ function Game() {
         onPurchaseCosmetic={handlePurchaseCosmetic}
         onSelectCharacter={setSelectedCharacter}
         onSelectHeart={setSelectedHeart}
+      />
+
+      <CollectionBook
+        show={showCollection}
+        onClose={() => setShowCollection(false)}
+        ownedCosmetics={ownedCosmetics}
       />
     </>
   );

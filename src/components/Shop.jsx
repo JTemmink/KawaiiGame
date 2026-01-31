@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SHOP_UPGRADES, SHOP_CHARACTERS, SHOP_HEARTS, PRICE_MULTIPLIER_PER_LEVEL } from '../utils/constants';
+import { SHOP_UPGRADES, SHOP_CHARACTERS, SHOP_HEARTS, PRICE_MULTIPLIER_PER_LEVEL, RARITY_COLORS, CATEGORIES } from '../utils/constants';
 
 function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, selectedCharacter, selectedHeart, onPurchaseUpgrade, onPurchaseCosmetic, onSelectCharacter, onSelectHeart }) {
   const [activeTab, setActiveTab] = useState('upgrades');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   const getScaledPrice = (basePrice) => {
     return Math.floor(basePrice * Math.pow(PRICE_MULTIPLIER_PER_LEVEL, level - 1));
@@ -12,6 +13,16 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
   const isUpgradeOwned = (itemId) => ownedUpgrades.includes(itemId);
   const isCosmeticOwned = (itemId) => ownedCosmetics.includes(itemId) || itemId === 'default_hand' || itemId === 'default_heart';
   const canAfford = (price) => coins >= price;
+
+  const getRarityStyle = (rarity) => RARITY_COLORS[rarity] || RARITY_COLORS.common;
+  const getRarityLabel = (rarity) => {
+    const labels = { common: 'Gewoon', uncommon: 'Ongewoon', rare: 'Zeldzaam', epic: 'Episch', legendary: 'Legendarisch' };
+    return labels[rarity] || 'Gewoon';
+  };
+
+  const filteredCharacters = selectedCategory === 'all' 
+    ? SHOP_CHARACTERS 
+    : SHOP_CHARACTERS.filter(c => c.category === selectedCategory);
 
   const tabs = [
     { id: 'upgrades', label: '⚡ Upgrades', emoji: '⚡' },
@@ -23,14 +34,14 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
     <AnimatePresence>
       {show && (
         <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-white rounded-3xl p-4 max-w-md w-full shadow-2xl max-h-[95vh] overflow-hidden flex flex-col"
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.8, opacity: 0, y: 20 }}
@@ -38,7 +49,7 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-2xl font-black text-gray-800">🛍️ Shop</h2>
                 <p className="text-xs text-gray-500">Level {level} - Prijzen schalen mee!</p>
@@ -52,14 +63,14 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
             </div>
 
             {/* Coins display */}
-            <div className="flex items-center justify-center gap-2 mb-3 py-2 rounded-2xl bg-gradient-to-r from-yellow-100 to-amber-100">
+            <div className="flex items-center justify-center gap-2 mb-2 py-2 rounded-2xl bg-gradient-to-r from-yellow-100 to-amber-100">
               <span className="text-2xl">💰</span>
               <span className="text-2xl font-black text-amber-600">{coins.toLocaleString()}</span>
               <span className="text-sm text-amber-600 font-bold">coins</span>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
+            <div className="flex gap-1 mb-2 bg-gray-100 p-1 rounded-xl">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -74,6 +85,38 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                 </button>
               ))}
             </div>
+
+            {/* Category filter for characters */}
+            {activeTab === 'characters' && (
+              <div className="flex gap-1 mb-2 overflow-x-auto pb-1">
+                <button
+                  onClick={() => setSelectedCategory('all')}
+                  className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                    selectedCategory === 'all'
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-pink-100 text-pink-600'
+                  }`}
+                >
+                  Alles ({SHOP_CHARACTERS.length})
+                </button>
+                {Object.entries(CATEGORIES).map(([key, cat]) => {
+                  const count = SHOP_CHARACTERS.filter(c => c.category === key).length;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedCategory(key)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                        selectedCategory === key
+                          ? 'bg-pink-500 text-white'
+                          : 'bg-pink-100 text-pink-600'
+                      }`}
+                    >
+                      {cat.emoji} {cat.name} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
@@ -122,27 +165,32 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
 
               {/* Characters Tab */}
               {activeTab === 'characters' && (
-                <div className="grid grid-cols-2 gap-2">
-                  {SHOP_CHARACTERS.map((item, index) => {
+                <div className="grid grid-cols-3 gap-2">
+                  {filteredCharacters.map((item, index) => {
                     const owned = isCosmeticOwned(item.id);
                     const affordable = canAfford(item.price);
                     const isSelected = selectedCharacter === item.id;
+                    const rarityStyle = getRarityStyle(item.rarity);
 
                     return (
                       <motion.div
                         key={item.id}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.03 }}
-                        className={`p-3 rounded-2xl border-2 transition-all text-center ${
+                        transition={{ delay: index * 0.02 }}
+                        className={`p-2 rounded-xl border-2 transition-all text-center cursor-pointer ${
                           isSelected
-                            ? 'bg-pink-100 border-pink-400 shadow-lg'
+                            ? 'shadow-lg ring-2 ring-pink-400'
                             : owned
-                            ? 'bg-green-50 border-green-300 cursor-pointer hover:border-green-400'
+                            ? 'hover:shadow-md'
                             : affordable
-                            ? 'bg-white border-gray-200 hover:border-pink-300 cursor-pointer'
-                            : 'bg-gray-50 border-gray-200 opacity-50'
+                            ? 'hover:shadow-md'
+                            : 'opacity-50'
                         }`}
+                        style={{
+                          backgroundColor: owned ? rarityStyle.bg : '#F9FAFB',
+                          borderColor: owned ? rarityStyle.border : '#E5E7EB',
+                        }}
                         onClick={() => {
                           if (owned) {
                             onSelectCharacter(item.id);
@@ -151,15 +199,24 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                           }
                         }}
                       >
-                        <div className="text-4xl mb-1">{item.preview}</div>
-                        <h3 className="font-bold text-xs text-gray-800">{item.name}</h3>
-                        <p className="text-xs text-gray-500 mb-1">{item.description}</p>
+                        <div className="text-3xl mb-1">{item.preview}</div>
+                        <h3 className="font-bold text-[10px] text-gray-800 truncate">{item.name}</h3>
+                        <p className="text-[8px] text-gray-500 truncate">{item.description}</p>
+                        
+                        {/* Rarity badge */}
+                        <span 
+                          className="inline-block text-[8px] px-1.5 py-0.5 rounded-full font-bold mt-1"
+                          style={{ backgroundColor: rarityStyle.border, color: 'white' }}
+                        >
+                          {getRarityLabel(item.rarity)}
+                        </span>
+
                         {isSelected ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-pink-500 text-white font-bold">Actief</span>
+                          <div className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500 text-white font-bold mt-1">Actief</div>
                         ) : owned ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">Gekocht</span>
+                          <div className="text-[10px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold mt-1">✓</div>
                         ) : (
-                          <div className="flex items-center justify-center gap-1 text-xs font-bold text-amber-600">
+                          <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-amber-600 mt-1">
                             <span>💰</span>
                             <span>{item.price.toLocaleString()}</span>
                           </div>
@@ -177,6 +234,7 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                     const owned = isCosmeticOwned(item.id);
                     const affordable = canAfford(item.price);
                     const isSelected = selectedHeart === item.id;
+                    const rarityStyle = getRarityStyle(item.rarity);
 
                     return (
                       <motion.div
@@ -184,15 +242,19 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.03 }}
-                        className={`p-3 rounded-2xl border-2 transition-all text-center ${
+                        className={`p-3 rounded-2xl border-2 transition-all text-center cursor-pointer ${
                           isSelected
-                            ? 'bg-pink-100 border-pink-400 shadow-lg'
+                            ? 'shadow-lg ring-2 ring-pink-400'
                             : owned
-                            ? 'bg-green-50 border-green-300 cursor-pointer hover:border-green-400'
+                            ? 'hover:shadow-md'
                             : affordable
-                            ? 'bg-white border-gray-200 hover:border-pink-300 cursor-pointer'
-                            : 'bg-gray-50 border-gray-200 opacity-50'
+                            ? 'hover:shadow-md'
+                            : 'opacity-50'
                         }`}
+                        style={{
+                          backgroundColor: owned ? rarityStyle.bg : '#F9FAFB',
+                          borderColor: owned ? rarityStyle.border : '#E5E7EB',
+                        }}
                         onClick={() => {
                           if (owned) {
                             onSelectHeart(item.id);
@@ -203,13 +265,27 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                       >
                         <div className="text-4xl mb-1">{item.preview}</div>
                         <h3 className="font-bold text-xs text-gray-800">{item.name}</h3>
-                        <p className="text-xs text-gray-500 mb-1">{item.description}</p>
+                        <p className="text-[10px] text-gray-500">{item.description}</p>
+                        
+                        {/* Face preview */}
+                        {owned && item.face && (
+                          <p className="text-xs text-gray-400 mt-1">{item.face}</p>
+                        )}
+
+                        {/* Rarity badge */}
+                        <span 
+                          className="inline-block text-[8px] px-1.5 py-0.5 rounded-full font-bold mt-1"
+                          style={{ backgroundColor: rarityStyle.border, color: 'white' }}
+                        >
+                          {getRarityLabel(item.rarity)}
+                        </span>
+
                         {isSelected ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-pink-500 text-white font-bold">Actief</span>
+                          <div className="text-xs px-2 py-0.5 rounded-full bg-pink-500 text-white font-bold mt-1">Actief</div>
                         ) : owned ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">Gekocht</span>
+                          <div className="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white font-bold mt-1">✓</div>
                         ) : (
-                          <div className="flex items-center justify-center gap-1 text-xs font-bold text-amber-600">
+                          <div className="flex items-center justify-center gap-1 text-xs font-bold text-amber-600 mt-1">
                             <span>💰</span>
                             <span>{item.price.toLocaleString()}</span>
                           </div>
