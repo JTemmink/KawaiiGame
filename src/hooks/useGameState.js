@@ -1,27 +1,31 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import {
-  CLICKS_TO_EXPLOSION,
+  BASE_CLICKS_TO_BONUS,
   BONUS_DURATION_SECONDS,
   BONUS_MULTIPLIER,
   HEART_MIN_SCALE,
   HEART_MAX_SCALE,
-  SHAKE_THRESHOLD,
-  PULSE_THRESHOLD,
+  SHAKE_THRESHOLD_PERCENT,
+  PULSE_THRESHOLD_PERCENT,
   HIGH_SCORE_KEY,
   COINS_KEY,
   UPGRADES_KEY,
+  PERMANENT_UPGRADES_KEY,
   COSMETICS_KEY,
   SELECTED_CHARACTER_KEY,
   SELECTED_HEART_KEY,
+  CURRENT_NIVEAU_KEY,
+  POINTS_PER_LEVEL,
+  LEVELS_PER_NIVEAU,
+  NIVEAU_THRESHOLDS,
   BASE_SHRINK_INTERVAL_MS,
   SHRINK_AMOUNT,
-  SPEED_INCREASE_THRESHOLD,
-  SPEED_INCREASE_FACTOR,
+  SHRINK_SPEED_FACTOR_PER_LEVEL,
   MIN_SHRINK_INTERVAL_MS,
   LEVEL_COLORS,
   SHOP_UPGRADES,
-  PRICE_MULTIPLIER_PER_LEVEL,
+  SHOP_HEARTS,
 } from '../utils/constants';
 
 export function useGameState() {
@@ -31,7 +35,14 @@ export function useGameState() {
   const [bonusTimeLeft, setBonusTimeLeft] = useState(0);
   const [highScore, setHighScore] = useLocalStorage(HIGH_SCORE_KEY, 0);
   const [coins, setCoins] = useLocalStorage(COINS_KEY, 0);
-  const [ownedUpgrades, setOwnedUpgrades] = useLocalStorage(UPGRADES_KEY, []);
+  
+  // Current niveau upgrades (reset when niveau changes)
+  const [currentNiveauUpgrades, setCurrentNiveauUpgrades] = useLocalStorage(UPGRADES_KEY, []);
+  // Permanent stacked upgrades (count per upgrade type across all niveaus)
+  const [permanentUpgrades, setPermanentUpgrades] = useLocalStorage(PERMANENT_UPGRADES_KEY, {});
+  // Current niveau (persisted)
+  const [savedNiveau, setSavedNiveau] = useLocalStorage(CURRENT_NIVEAU_KEY, 1);
+  
   const [ownedCosmetics, setOwnedCosmetics] = useLocalStorage(COSMETICS_KEY, []);
   const [selectedCharacter, setSelectedCharacter] = useLocalStorage(SELECTED_CHARACTER_KEY, 'default_hand');
   const [selectedHeart, setSelectedHeart] = useLocalStorage(SELECTED_HEART_KEY, 'default_heart');
@@ -39,44 +50,77 @@ export function useGameState() {
   const [gameOver, setGameOver] = useState(false);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [showNiveauUp, setShowNiveauUp] = useState(false);
+  const [bonusBoostUsed, setBonusBoostUsed] = useState(false); // Track if bonus boost was used this bonus
 
   const bonusIntervalRef = useRef(null);
   const shrinkIntervalRef = useRef(null);
   const autoClickIntervalRef = useRef(null);
   const lastClickTimeRef = useRef(Date.now());
   const previousLevelRef = useRef(1);
+  const previousNiveauRef = useRef(savedNiveau);
 
-  // Get upgrade effect value
-  const getUpgradeValue = useCallback((effectType, defaultValue) => {
-    const upgrade = SHOP_UPGRADES.find(
-      item => ownedUpgrades.includes(item.id) && item.effect.type === effectType
-    );
-    return upgrade ? upgrade.effect.value : defaultValue;
-  }, [ownedUpgrades]);
+  // Calculate niveau from score
+  const getNiveauFromScore = useCallback((currentScore) => {
+    for (let i = NIVEAU_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (currentScore >= NIVEAU_THRESHOLDS[i]) {
+        return i + 1;
+      }
+    }
+    return 1;
+  }, []);
 
-  // Computed upgrade effects
-  const clickMultiplier = getUpgradeValue('click_multiplier', 1);
-  const shrinkSlowFactor = getUpgradeValue('shrink_slow', 1);
-  const bonusExtend = getUpgradeValue('bonus_extend', 0);
-  const bonusMultiplier = getUpgradeValue('bonus_multiplier', BONUS_MULTIPLIER);
-  const autoClickRate = getUpgradeValue('auto_click', 0);
-  const explosionBonus = getUpgradeValue('explosion_bonus', 0);
+  // Current niveau based on score
+  const niveau = getNiveauFromScore(score);
+  
+  // Level within current play session (resets each game, changes background)
+  const level = Math.floor(score / POINTS_PER_LEVEL) + 1;
+  
+  // Clicks needed for bonus (doubles each niveau)
+  const clicksToBonus = BASE_CLICKS_TO_BONUS * Math.pow(2, niveau - 1);
+  
+  // Get stacked upgrade count (how many times bought across all niveaus)
+  const getUpgradeStack = useCallback((upgradeId) => {
+    return permanentUpgrades[upgradeId] || 0;
+  }, [permanentUpgrades]);
 
-  // Calculate shrink interval based on score and upgrades
-  const getShrinkInterval = useCallback((currentScore) => {
-    const speedLevel = Math.floor(currentScore / SPEED_INCREASE_THRESHOLD);
-    const baseInterval = BASE_SHRINK_INTERVAL_MS * Math.pow(SPEED_INCREASE_FACTOR, speedLevel);
-    const interval = baseInterval / shrinkSlowFactor;
+  // Check if upgrade is bought in current niveau
+  const hasCurrentNiveauUpgrade = useCallback((upgradeId) => {
+    return currentNiveauUpgrades.includes(upgradeId);
+  }, [currentNiveauUpgrades]);
+
+  // Calculate stacked effect values
+  const clickMultiplier = Math.pow(2, getUpgradeStack('double_tap')); // 2^n: 1, 2, 4, 8...
+  const shrinkSlowFactor = Math.pow(0.7, getUpgradeStack('slow_shrink')); // 0.7^n: 1, 0.7, 0.49...
+  const bonusMultiplier = Math.pow(3, getUpgradeStack('triple_bonus')) * BONUS_MULTIPLIER; // 3^n * 2
+  const autoClickRate = getUpgradeStack('auto_click'); // 1 per stack
+  const explosionBonus = getUpgradeStack('mega_explosion') * 50; // +50 per stack
+  
+  // Bonus extend is single-use per bonus round
+  const bonusExtendAvailable = hasCurrentNiveauUpgrade('bonus_extend') && !bonusBoostUsed;
+  const bonusExtendSeconds = bonusExtendAvailable ? 2 : 0;
+
+  // Calculate shrink interval based on level
+  const getShrinkInterval = useCallback((currentLevel) => {
+    const baseInterval = BASE_SHRINK_INTERVAL_MS * Math.pow(SHRINK_SPEED_FACTOR_PER_LEVEL, currentLevel - 1);
+    const interval = baseInterval * shrinkSlowFactor;
     return Math.max(interval, MIN_SHRINK_INTERVAL_MS);
   }, [shrinkSlowFactor]);
 
-  // Computed values
-  const level = Math.floor(score / SPEED_INCREASE_THRESHOLD) + 1;
-  const levelColors = LEVEL_COLORS[Math.min(level - 1, LEVEL_COLORS.length - 1)];
-  const heartScale = HEART_MIN_SCALE + (clicks / CLICKS_TO_EXPLOSION) * (HEART_MAX_SCALE - HEART_MIN_SCALE);
-  const isShaking = clicks >= SHAKE_THRESHOLD && clicks < PULSE_THRESHOLD;
-  const isPulsing = clicks >= PULSE_THRESHOLD;
+  // Level colors (cycle through)
+  const levelColors = LEVEL_COLORS[(level - 1) % LEVEL_COLORS.length];
+  
+  // Heart scaling based on clicks to bonus
+  const heartScale = HEART_MIN_SCALE + (clicks / clicksToBonus) * (HEART_MAX_SCALE - HEART_MIN_SCALE);
+  const shakeThreshold = Math.floor(clicksToBonus * SHAKE_THRESHOLD_PERCENT);
+  const pulseThreshold = Math.floor(clicksToBonus * PULSE_THRESHOLD_PERCENT);
+  const isShaking = clicks >= shakeThreshold && clicks < pulseThreshold;
+  const isPulsing = clicks >= pulseThreshold;
   const pointsPerClick = bonusActive ? bonusMultiplier : 1;
+
+  // Get selected heart color
+  const selectedHeartData = SHOP_HEARTS.find(h => h.id === selectedHeart);
+  const heartColor = selectedHeartData?.color || '#FF69B4';
 
   // Check for level up
   useEffect(() => {
@@ -87,20 +131,41 @@ export function useGameState() {
     previousLevelRef.current = level;
   }, [level, score]);
 
-  // Get scaled price for upgrades
-  const getScaledPrice = useCallback((basePrice) => {
-    return Math.floor(basePrice * Math.pow(PRICE_MULTIPLIER_PER_LEVEL, level - 1));
-  }, [level]);
+  // Check for niveau up
+  useEffect(() => {
+    if (niveau > previousNiveauRef.current && score > 0) {
+      setShowNiveauUp(true);
+      // Reset current niveau upgrades when going up a niveau
+      setCurrentNiveauUpgrades([]);
+      setSavedNiveau(niveau);
+      setTimeout(() => setShowNiveauUp(false), 3000);
+    }
+    previousNiveauRef.current = niveau;
+  }, [niveau, score, setCurrentNiveauUpgrades, setSavedNiveau]);
+
+  // Get price for upgrade at current niveau
+  const getUpgradePrice = useCallback((upgrade) => {
+    const niveauIndex = Math.min(niveau - 1, upgrade.basePrices.length - 1);
+    return upgrade.basePrices[niveauIndex];
+  }, [niveau]);
 
   // Purchase upgrade
   const purchaseUpgrade = useCallback((item, price) => {
-    if (coins >= price && !ownedUpgrades.includes(item.id)) {
+    if (coins >= price && !currentNiveauUpgrades.includes(item.id)) {
       setCoins(coins - price);
-      setOwnedUpgrades([...ownedUpgrades, item.id]);
+      // Add to current niveau upgrades
+      setCurrentNiveauUpgrades([...currentNiveauUpgrades, item.id]);
+      // Add to permanent stacks (except single-use items)
+      if (!item.singleUse) {
+        setPermanentUpgrades(prev => ({
+          ...prev,
+          [item.id]: (prev[item.id] || 0) + 1
+        }));
+      }
       return true;
     }
     return false;
-  }, [coins, ownedUpgrades, setCoins, setOwnedUpgrades]);
+  }, [coins, currentNiveauUpgrades, setCoins, setCurrentNiveauUpgrades, setPermanentUpgrades]);
 
   // Purchase cosmetic
   const purchaseCosmetic = useCallback((type, item) => {
@@ -126,17 +191,28 @@ export function useGameState() {
     setBonusTimeLeft(0);
     setGameOver(false);
     setIsNewHighScore(false);
+    setBonusBoostUsed(false);
     lastClickTimeRef.current = Date.now();
     previousLevelRef.current = 1;
-  }, []);
+    previousNiveauRef.current = 1;
+    // Reset current niveau upgrades for new game
+    setCurrentNiveauUpgrades([]);
+  }, [setCurrentNiveauUpgrades]);
 
   // Start bonus mode
   const startBonusMode = useCallback(() => {
     if (bonusActive) return;
     
     setBonusActive(true);
-    setBonusTimeLeft(BONUS_DURATION_SECONDS + bonusExtend);
-  }, [bonusActive, bonusExtend]);
+    setBonusBoostUsed(false); // Reset bonus boost for new bonus round
+    const duration = BONUS_DURATION_SECONDS + (bonusExtendAvailable ? 2 : 0);
+    setBonusTimeLeft(duration);
+    
+    // Mark bonus boost as used if we had it
+    if (bonusExtendAvailable) {
+      setBonusBoostUsed(true);
+    }
+  }, [bonusActive, bonusExtendAvailable]);
 
   // Bonus timer countdown
   useEffect(() => {
@@ -168,7 +244,7 @@ export function useGameState() {
       lastClickTimeRef.current = Date.now();
       setClicks((prev) => {
         const newClicks = prev + 1;
-        if (newClicks >= CLICKS_TO_EXPLOSION) {
+        if (newClicks >= clicksToBonus) {
           setShowExplosion(true);
           startBonusMode();
           setTimeout(() => setShowExplosion(false), 600);
@@ -191,7 +267,7 @@ export function useGameState() {
         clearInterval(autoClickIntervalRef.current);
       }
     };
-  }, [autoClickRate, gameOver, bonusActive, bonusMultiplier, highScore, setHighScore, startBonusMode]);
+  }, [autoClickRate, gameOver, bonusActive, bonusMultiplier, highScore, setHighScore, startBonusMode, clicksToBonus]);
 
   // Shrink mechanic
   useEffect(() => {
@@ -200,7 +276,7 @@ export function useGameState() {
     const checkShrink = () => {
       const now = Date.now();
       const timeSinceLastClick = now - lastClickTimeRef.current;
-      const currentInterval = getShrinkInterval(score);
+      const currentInterval = getShrinkInterval(level);
 
       if (timeSinceLastClick >= currentInterval) {
         setClicks((prev) => {
@@ -223,7 +299,7 @@ export function useGameState() {
         clearInterval(shrinkIntervalRef.current);
       }
     };
-  }, [score, gameOver, getShrinkInterval]);
+  }, [score, level, gameOver, getShrinkInterval]);
 
   // Award coins on game over (10% of score)
   useEffect(() => {
@@ -247,7 +323,7 @@ export function useGameState() {
     const newScore = score + pointsPerClick;
 
     setScore(newScore);
-    setClicks(Math.min(newClicks, CLICKS_TO_EXPLOSION));
+    setClicks(Math.min(newClicks, clicksToBonus));
 
     // Check for new high score
     if (newScore > highScore) {
@@ -257,8 +333,8 @@ export function useGameState() {
       }
     }
 
-    // Check for explosion
-    if (newClicks >= CLICKS_TO_EXPLOSION) {
+    // Check for bonus trigger
+    if (newClicks >= clicksToBonus) {
       setShowExplosion(true);
       setClicks(0);
       startBonusMode();
@@ -273,7 +349,7 @@ export function useGameState() {
     }
 
     return { points: pointsPerClick, triggered: false, isBonus: bonusActive, wasGameOver: false };
-  }, [clicks, score, pointsPerClick, highScore, setHighScore, startBonusMode, bonusActive, gameOver, resetGame, clickMultiplier, explosionBonus, isNewHighScore]);
+  }, [clicks, score, pointsPerClick, highScore, setHighScore, startBonusMode, bonusActive, gameOver, resetGame, clickMultiplier, explosionBonus, isNewHighScore, clicksToBonus]);
 
   return {
     // State
@@ -283,7 +359,8 @@ export function useGameState() {
     bonusTimeLeft,
     highScore,
     coins,
-    ownedUpgrades,
+    currentNiveauUpgrades,
+    permanentUpgrades,
     ownedCosmetics,
     selectedCharacter,
     selectedHeart,
@@ -291,15 +368,26 @@ export function useGameState() {
     gameOver,
     isNewHighScore,
     showLevelUp,
+    showNiveauUp,
     
     // Computed
     level,
+    niveau,
     levelColors,
     heartScale,
+    heartColor,
     isShaking,
     isPulsing,
     pointsPerClick,
-    shrinkInterval: getShrinkInterval(score),
+    clicksToBonus,
+    shrinkInterval: getShrinkInterval(level),
+    
+    // Upgrade info
+    clickMultiplier,
+    bonusMultiplier,
+    autoClickRate,
+    explosionBonus,
+    bonusExtendAvailable,
     
     // Actions
     handleClick,
@@ -308,6 +396,8 @@ export function useGameState() {
     purchaseCosmetic,
     setSelectedCharacter,
     setSelectedHeart,
-    getScaledPrice,
+    getUpgradePrice,
+    getUpgradeStack,
+    hasCurrentNiveauUpgrade,
   };
 }

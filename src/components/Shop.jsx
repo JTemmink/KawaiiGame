@@ -1,16 +1,28 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SHOP_UPGRADES, SHOP_CHARACTERS, SHOP_HEARTS, PRICE_MULTIPLIER_PER_LEVEL, RARITY_COLORS, CATEGORIES } from '../utils/constants';
+import { SHOP_UPGRADES, SHOP_CHARACTERS, SHOP_HEARTS, RARITY_COLORS, CATEGORIES } from '../utils/constants';
 
-function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, selectedCharacter, selectedHeart, onPurchaseUpgrade, onPurchaseCosmetic, onSelectCharacter, onSelectHeart }) {
+function Shop({ 
+  show, 
+  onClose, 
+  coins, 
+  niveau, 
+  currentNiveauUpgrades, 
+  permanentUpgrades,
+  ownedCosmetics, 
+  selectedCharacter, 
+  selectedHeart, 
+  onPurchaseUpgrade, 
+  onPurchaseCosmetic, 
+  onSelectCharacter, 
+  onSelectHeart,
+  getUpgradePrice,
+  getUpgradeStack,
+}) {
   const [activeTab, setActiveTab] = useState('upgrades');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const getScaledPrice = (basePrice) => {
-    return Math.floor(basePrice * Math.pow(PRICE_MULTIPLIER_PER_LEVEL, level - 1));
-  };
-
-  const isUpgradeOwned = (itemId) => ownedUpgrades.includes(itemId);
+  const isUpgradeOwnedThisNiveau = (itemId) => currentNiveauUpgrades.includes(itemId);
   const isCosmeticOwned = (itemId) => ownedCosmetics.includes(itemId) || itemId === 'default_hand' || itemId === 'default_heart';
   const canAfford = (price) => coins >= price;
 
@@ -52,7 +64,7 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-2xl font-black text-gray-800">🛍️ Shop</h2>
-                <p className="text-xs text-gray-500">Level {level} - Prijzen schalen mee!</p>
+                <p className="text-xs text-purple-600 font-bold">Niveau {niveau} - Upgrades stapelen!</p>
               </div>
               <button
                 onClick={onClose}
@@ -122,8 +134,9 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {/* Upgrades Tab */}
               {activeTab === 'upgrades' && SHOP_UPGRADES.map((item, index) => {
-                const owned = isUpgradeOwned(item.id);
-                const price = getScaledPrice(item.basePrice);
+                const ownedThisNiveau = isUpgradeOwnedThisNiveau(item.id);
+                const stackCount = getUpgradeStack(item.id);
+                const price = getUpgradePrice(item);
                 const affordable = canAfford(price);
 
                 return (
@@ -133,24 +146,34 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.03 }}
                     className={`p-3 rounded-2xl border-2 transition-all ${
-                      owned
+                      ownedThisNiveau
                         ? 'bg-green-50 border-green-300'
                         : affordable
                         ? 'bg-white border-pink-200 hover:border-pink-400 hover:shadow-md cursor-pointer'
                         : 'bg-gray-50 border-gray-200 opacity-60'
                     }`}
-                    onClick={() => !owned && affordable && onPurchaseUpgrade(item, price)}
+                    onClick={() => !ownedThisNiveau && affordable && onPurchaseUpgrade(item, price)}
                   >
                     <div className="flex items-center gap-3">
                       <div className="text-2xl">{item.emoji}</div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-gray-800 text-sm">{item.name}</h3>
-                          {owned && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">✓</span>}
+                          {stackCount > 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500 text-white font-bold">
+                              x{stackCount}
+                            </span>
+                          )}
+                          {ownedThisNiveau && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">✓</span>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500">{item.description}</p>
+                        {item.singleUse && (
+                          <p className="text-[10px] text-orange-500 font-bold">⚠️ Eenmalig per bonus</p>
+                        )}
                       </div>
-                      {!owned && (
+                      {!ownedThisNiveau && (
                         <div className={`flex items-center gap-1 px-2 py-1 rounded-full font-bold text-xs ${
                           affordable ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'
                         }`}>
@@ -203,7 +226,6 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                         <h3 className="font-bold text-[10px] text-gray-800 truncate">{item.name}</h3>
                         <p className="text-[8px] text-gray-500 truncate">{item.description}</p>
                         
-                        {/* Rarity badge */}
                         <span 
                           className="inline-block text-[8px] px-1.5 py-0.5 rounded-full font-bold mt-1"
                           style={{ backgroundColor: rarityStyle.border, color: 'white' }}
@@ -267,12 +289,10 @@ function Shop({ show, onClose, coins, level, ownedUpgrades, ownedCosmetics, sele
                         <h3 className="font-bold text-xs text-gray-800">{item.name}</h3>
                         <p className="text-[10px] text-gray-500">{item.description}</p>
                         
-                        {/* Face preview */}
                         {owned && item.face && (
                           <p className="text-xs text-gray-400 mt-1">{item.face}</p>
                         )}
 
-                        {/* Rarity badge */}
                         <span 
                           className="inline-block text-[8px] px-1.5 py-0.5 rounded-full font-bold mt-1"
                           style={{ backgroundColor: rarityStyle.border, color: 'white' }}

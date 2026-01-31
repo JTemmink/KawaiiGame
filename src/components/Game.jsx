@@ -16,7 +16,7 @@ import Leaderboard from './Leaderboard';
 import BonusAnnouncement from './BonusAnnouncement';
 import Shop from './Shop';
 import CollectionBook from './CollectionBook';
-import { NewHighScoreCelebration, RankUpCelebration, LevelUpCelebration } from './Celebrations';
+import { NewHighScoreCelebration, RankUpCelebration, LevelUpCelebration, NiveauUpCelebration } from './Celebrations';
 
 function Game() {
   const {
@@ -26,7 +26,8 @@ function Game() {
     bonusTimeLeft,
     highScore,
     coins,
-    ownedUpgrades,
+    currentNiveauUpgrades,
+    permanentUpgrades,
     ownedCosmetics,
     selectedCharacter,
     selectedHeart,
@@ -34,17 +35,23 @@ function Game() {
     gameOver,
     isNewHighScore,
     showLevelUp,
+    showNiveauUp,
     level,
+    niveau,
     levelColors,
     heartScale,
+    heartColor,
     isShaking,
     isPulsing,
+    clicksToBonus,
     handleClick,
     resetGame,
     purchaseUpgrade,
     purchaseCosmetic,
     setSelectedCharacter,
     setSelectedHeart,
+    getUpgradePrice,
+    getUpgradeStack,
   } = useGameState();
 
   const [floatingPoints, setFloatingPoints] = useState([]);
@@ -100,7 +107,7 @@ function Game() {
       // Check if score qualifies for top 10 and submit
       checkIfTopScore(score).then((qualifies) => {
         if (qualifies) {
-          submitHighscore(playerName, score, level).then(() => {
+          submitHighscore(playerName, score, niveau).then(() => {
             // Check new rank after submitting
             getTopHighscores().then((scores) => {
               const newRank = scores.findIndex(s => s.player_name === playerName && s.score === score) + 1;
@@ -114,7 +121,7 @@ function Game() {
       });
       setScoreSubmitted(true);
     }
-  }, [gameOver, playerName, score, level, scoreSubmitted, playGameOver]);
+  }, [gameOver, playerName, score, niveau, scoreSubmitted, playGameOver]);
 
   // Reset scoreSubmitted when starting new game
   useEffect(() => {
@@ -209,7 +216,9 @@ function Game() {
               highScore={highScore} 
               bonusActive={bonusActive} 
               level={level}
+              niveau={niveau}
               coins={coins}
+              clicksToBonus={clicksToBonus}
               onOpenShop={() => setShowShop(true)}
             />
           </div>
@@ -221,8 +230,7 @@ function Game() {
               isShaking={isShaking}
               isPulsing={isPulsing}
               bonusActive={bonusActive}
-              selectedCharacter={selectedCharacter}
-              selectedHeart={selectedHeart}
+              heartColor={heartColor}
             />
             <ClickCounter clicks={clicks} bonusActive={bonusActive} />
           </div>
@@ -248,6 +256,7 @@ function Game() {
           <NewHighScoreCelebration show={showHighScoreCelebration} />
           <RankUpCelebration show={rankUp.show} newRank={rankUp.newRank} oldRank={rankUp.oldRank} />
           <LevelUpCelebration show={showLevelUp} level={level} />
+          <NiveauUpCelebration show={showNiveauUp} niveau={niveau} />
 
           <GameOverOverlay 
             show={gameOver} 
@@ -270,8 +279,9 @@ function Game() {
         show={showShop}
         onClose={() => setShowShop(false)}
         coins={coins}
-        level={level}
-        ownedUpgrades={ownedUpgrades}
+        niveau={niveau}
+        currentNiveauUpgrades={currentNiveauUpgrades}
+        permanentUpgrades={permanentUpgrades}
         ownedCosmetics={ownedCosmetics}
         selectedCharacter={selectedCharacter}
         selectedHeart={selectedHeart}
@@ -279,6 +289,8 @@ function Game() {
         onPurchaseCosmetic={handlePurchaseCosmetic}
         onSelectCharacter={setSelectedCharacter}
         onSelectHeart={setSelectedHeart}
+        getUpgradePrice={getUpgradePrice}
+        getUpgradeStack={getUpgradeStack}
       />
 
       <CollectionBook

@@ -1,5 +1,5 @@
-// Gameplay
-export const CLICKS_TO_EXPLOSION = 50;
+// Gameplay - Base values (scale with niveau)
+export const BASE_CLICKS_TO_BONUS = 50; // Doubles per niveau
 export const BONUS_DURATION_SECONDS = 8;
 export const BONUS_MULTIPLIER = 2;
 
@@ -7,9 +7,9 @@ export const BONUS_MULTIPLIER = 2;
 export const HEART_MIN_SCALE = 1.0;
 export const HEART_MAX_SCALE = 1.5;
 
-// Animation thresholds
-export const SHAKE_THRESHOLD = 40;
-export const PULSE_THRESHOLD = 48;
+// Animation thresholds (percentage of clicks to bonus)
+export const SHAKE_THRESHOLD_PERCENT = 0.8; // 80% of clicks needed
+export const PULSE_THRESHOLD_PERCENT = 0.96; // 96% of clicks needed
 
 // Particles
 export const EXPLOSION_PARTICLE_COUNT = 25;
@@ -18,66 +18,86 @@ export const EXPLOSION_PARTICLE_COUNT = 25;
 export const HIGH_SCORE_KEY = 'kawaii-high-score';
 export const PLAYER_NAME_KEY = 'kawaii-player-name';
 export const COINS_KEY = 'kawaii-coins';
-export const UPGRADES_KEY = 'kawaii-upgrades';
+export const UPGRADES_KEY = 'kawaii-upgrades'; // Per-niveau upgrades (resets on niveau up)
+export const PERMANENT_UPGRADES_KEY = 'kawaii-permanent-upgrades'; // Stacked upgrades across niveaus
 export const COSMETICS_KEY = 'kawaii-cosmetics';
 export const SELECTED_CHARACTER_KEY = 'kawaii-selected-character';
 export const SELECTED_HEART_KEY = 'kawaii-selected-heart';
 export const COLLECTION_KEY = 'kawaii-collection';
+export const CURRENT_NIVEAU_KEY = 'kawaii-current-niveau';
 
-// Upgrade items (base prices - scale with level)
+// Level system (within a niveau)
+export const POINTS_PER_LEVEL = 250; // Every 250 points = 1 level
+export const LEVELS_PER_NIVEAU = 4; // Every 4 levels = 1 niveau
+
+// Niveau system - points needed to reach next niveau (exponential)
+export const NIVEAU_THRESHOLDS = [
+  0,      // Niveau 1 starts at 0
+  1000,   // Niveau 2 at 1000 (4 levels × 250)
+  2500,   // Niveau 3
+  5000,   // Niveau 4
+  10000,  // Niveau 5
+  20000,  // Niveau 6
+  40000,  // Niveau 7
+  80000,  // Niveau 8
+  150000, // Niveau 9
+  300000, // Niveau 10
+];
+
+// Upgrade items (base prices - increase per niveau)
 export const SHOP_UPGRADES = [
   {
     id: 'double_tap',
     name: 'Double Tap',
-    description: 'Elke klik telt als 2 kliks!',
+    description: 'Elke klik telt dubbel!',
     emoji: '✌️',
-    basePrice: 150,
-    effect: { type: 'click_multiplier', value: 2 },
+    basePrices: [150, 250, 400, 600, 900, 1300, 1800, 2500, 3500, 5000], // Price per niveau
+    effect: { type: 'click_multiplier', value: 2 }, // Stacks: 2x, 4x, 8x, etc.
   },
   {
     id: 'slow_shrink',
     name: 'Slow Motion',
     description: 'Hartje krimpt 30% langzamer',
     emoji: '🐢',
-    basePrice: 250,
-    effect: { type: 'shrink_slow', value: 0.7 },
+    basePrices: [200, 350, 550, 800, 1100, 1500, 2000, 2700, 3600, 5000],
+    effect: { type: 'shrink_slow', value: 0.7 }, // Stacks: 0.7, 0.49, 0.34, etc.
   },
   {
     id: 'bonus_extend',
     name: 'Bonus Boost',
-    description: 'Bonus duurt 4 seconden langer',
+    description: '+2 seconden bonus (eenmalig per bonus)',
     emoji: '⏰',
-    basePrice: 350,
-    effect: { type: 'bonus_extend', value: 4 },
+    basePrices: [100, 180, 280, 400, 550, 750, 1000, 1400, 1900, 2500],
+    effect: { type: 'bonus_extend', value: 2 }, // Single use per bonus round
+    singleUse: true, // Consumed after one bonus
   },
   {
     id: 'triple_bonus',
     name: 'Triple Bonus',
     description: '3x punten tijdens bonus (ipv 2x)',
     emoji: '🔥',
-    basePrice: 500,
-    effect: { type: 'bonus_multiplier', value: 3 },
+    basePrices: [300, 500, 750, 1100, 1500, 2100, 2800, 3800, 5000, 7000],
+    effect: { type: 'bonus_multiplier', value: 3 }, // Stacks: 3x, 9x, 27x, etc.
   },
   {
     id: 'auto_click',
     name: 'Auto Clicker',
     description: 'Automatisch 1 klik per seconde',
     emoji: '🤖',
-    basePrice: 750,
-    effect: { type: 'auto_click', value: 1 },
+    basePrices: [400, 700, 1000, 1500, 2100, 2900, 3900, 5200, 7000, 9500],
+    effect: { type: 'auto_click', value: 1 }, // Stacks: 1, 2, 3, etc. clicks per second
   },
   {
     id: 'mega_explosion',
     name: 'Mega Explosion',
-    description: 'Explosion geeft +50 bonus punten',
+    description: '+50 bonus punten bij elke bonus',
     emoji: '💥',
-    basePrice: 600,
-    effect: { type: 'explosion_bonus', value: 50 },
+    basePrices: [350, 600, 900, 1300, 1800, 2500, 3300, 4400, 5800, 7800],
+    effect: { type: 'explosion_bonus', value: 50 }, // Stacks: +50, +100, +150, etc.
   },
 ];
 
 // Kawaii Characters (50+ collectible mascots)
-// Categories: Animals, Food, Fantasy, Nature, Objects, Special
 export const SHOP_CHARACTERS = [
   // === STARTER (Free) ===
   { id: 'default_hand', name: 'Korean Heart', description: 'De klassieke finger heart', preview: '🤞', price: 0, unlocked: true, category: 'starter', rarity: 'common' },
@@ -234,23 +254,21 @@ export const CATEGORIES = {
 // Shrink mechanic - heart shrinks if you don't click fast enough
 export const BASE_SHRINK_INTERVAL_MS = 1000; // Base time before shrink
 export const SHRINK_AMOUNT = 2; // Clicks lost per shrink
-export const SPEED_INCREASE_THRESHOLD = 250; // Every 250 points = 1 level up
-export const SPEED_INCREASE_FACTOR = 0.85; // Multiply interval by this factor
-export const MIN_SHRINK_INTERVAL_MS = 300; // Minimum interval (fastest speed)
+export const SHRINK_SPEED_FACTOR_PER_LEVEL = 0.92; // Gets faster each level
+export const MIN_SHRINK_INTERVAL_MS = 200; // Minimum interval (fastest speed)
 
-// Level colors - different pink shades per level
+// Level colors - different shades per level (cycles through)
 export const LEVEL_COLORS = [
-  { from: '#FFE5E5', to: '#E5F3FF' },   // Level 1: Light pink to light blue (default)
+  { from: '#FFE5E5', to: '#E5F3FF' },   // Level 1: Light pink to light blue
   { from: '#FFD6E0', to: '#E0E5FF' },   // Level 2: Soft rose
   { from: '#FFC4D4', to: '#D4D9FF' },   // Level 3: Rose pink
-  { from: '#FFB0C4', to: '#C4CCFF' },   // Level 4: Pink
-  { from: '#FF9BB5', to: '#B5BFFF' },   // Level 5: Hot pink light
-  { from: '#FF85A5', to: '#A5B0FF' },   // Level 6: Hot pink
-  { from: '#FF6F96', to: '#96A0FF' },   // Level 7: Deep pink
-  { from: '#FF5A87', to: '#8790FF' },   // Level 8: Magenta pink
-  { from: '#FF4578', to: '#7880FF' },   // Level 9: Bright magenta
-  { from: '#FF3069', to: '#6970FF' },   // Level 10+: Intense magenta
+  { from: '#FFB0C4', to: '#C4CCFF' },   // Level 4: Pink (niveau up!)
+  { from: '#E5FFE5', to: '#E5F3FF' },   // Level 5: Light green (new niveau)
+  { from: '#D6FFD6', to: '#E0E5FF' },   // Level 6: Soft green
+  { from: '#C4FFC4', to: '#D4D9FF' },   // Level 7: Green
+  { from: '#B0FFB0', to: '#C4CCFF' },   // Level 8: Bright green (niveau up!)
+  { from: '#E5E5FF', to: '#FFE5F3' },   // Level 9: Light purple
+  { from: '#D6D6FF', to: '#FFE0E5' },   // Level 10: Soft purple
+  { from: '#C4C4FF', to: '#FFD4D9' },   // Level 11: Purple
+  { from: '#B0B0FF', to: '#FFC4CC' },   // Level 12: Bright purple (niveau up!)
 ];
-
-// Price multiplier per level (prices increase as you level up)
-export const PRICE_MULTIPLIER_PER_LEVEL = 1.15;

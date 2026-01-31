@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import HeartSVG from './HeartSVG';
 
-function KawaiiHand({ onTap, heartScale, isShaking, isPulsing, bonusActive }) {
+function KawaiiHand({ onTap, heartScale, isShaking, isPulsing, bonusActive, heartColor }) {
   return (
     <motion.div
       className="relative cursor-pointer select-none"
@@ -19,12 +19,13 @@ function KawaiiHand({ onTap, heartScale, isShaking, isPulsing, bonusActive }) {
         style={{ filter: 'blur(20px)' }}
       />
 
-      {/* Heart that grows */}
+      {/* Heart that grows - uses selected heart color */}
       <HeartSVG 
         scale={heartScale} 
         isShaking={isShaking} 
         isPulsing={isPulsing}
         bonusActive={bonusActive}
+        heartColor={heartColor}
       />
 
       {/* The hand image - with white background removed */}
