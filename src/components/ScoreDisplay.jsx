@@ -3,38 +3,54 @@ import { motion } from 'framer-motion';
 function ScoreDisplay({ score, highScore, bonusActive, level }) {
   return (
     <div className="text-center">
-      <div className="flex items-center justify-center gap-4 mb-1">
-        <p className="text-xs uppercase tracking-widest text-gray-400">Score</p>
-        <motion.span
-          key={level}
-          initial={{ scale: 1.3 }}
-          animate={{ scale: 1 }}
-          className="px-3 py-1 rounded-full bg-pink-primary/20 text-pink-primary text-xs font-bold"
-        >
-          Level {level}
-        </motion.span>
-      </div>
-      <motion.p
-        className={`text-5xl sm:text-6xl font-black bg-clip-text text-transparent ${
-          bonusActive
-            ? 'bg-gradient-to-b from-gold to-orange-500'
-            : 'bg-gradient-to-b from-pink-primary to-pink-dark'
+      {/* Level badge */}
+      <motion.div
+        key={level}
+        initial={{ scale: 1.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className={`inline-block px-4 py-1 rounded-full mb-2 font-bold text-sm ${
+          bonusActive 
+            ? 'bg-gold/30 text-amber-700' 
+            : 'bg-pink-primary/20 text-pink-dark'
         }`}
-        key={score}
-        initial={{ scale: 1 }}
-        animate={{ scale: [1, 1.1, 1] }}
-        transition={{ duration: 0.15 }}
-        style={{
-          filter: bonusActive 
-            ? 'drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5))' 
-            : 'drop-shadow(0 2px 4px rgba(255, 105, 180, 0.3))',
-        }}
       >
-        {score.toLocaleString()}
-      </motion.p>
-      <p className="text-sm text-gray-500 mt-2">
-        Best: <span className="text-pink-primary font-bold">{highScore.toLocaleString()}</span>
+        ⭐ Level {level}
+      </motion.div>
+
+      {/* Score label */}
+      <p className="text-xs uppercase tracking-[0.3em] text-gray-400 mb-1 font-bold">
+        Score
       </p>
+
+      {/* Main score */}
+      <div className="relative">
+        <motion.p
+          className={`text-6xl sm:text-7xl font-black ${
+            bonusActive
+              ? 'text-amber-500'
+              : 'text-pink-primary'
+          }`}
+          key={score}
+          initial={{ scale: 1 }}
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 0.15 }}
+          style={{
+            textShadow: bonusActive 
+              ? '0 4px 20px rgba(255, 215, 0, 0.5), 0 2px 4px rgba(0,0,0,0.1)' 
+              : '0 4px 20px rgba(255, 105, 180, 0.4), 0 2px 4px rgba(0,0,0,0.1)',
+            WebkitTextStroke: bonusActive ? '2px #b45309' : '2px #db2777',
+            paintOrder: 'stroke fill',
+          }}
+        >
+          {score.toLocaleString()}
+        </motion.p>
+      </div>
+
+      {/* High score */}
+      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 backdrop-blur-sm">
+        <span className="text-xs text-gray-500">🏆 Best:</span>
+        <span className="text-sm font-black text-pink-primary">{highScore.toLocaleString()}</span>
+      </div>
     </div>
   );
 }

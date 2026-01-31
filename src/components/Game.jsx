@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { useClickSound } from '../hooks/useClickSound';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -13,6 +13,7 @@ import Particles, { ExplosionFlash, ScreenShake } from './Particles';
 import GameOverOverlay from './GameOverOverlay';
 import NameInputModal from './NameInputModal';
 import Leaderboard from './Leaderboard';
+import BonusAnnouncement from './BonusAnnouncement';
 
 function Game() {
   const {
@@ -37,8 +38,19 @@ function Game() {
   const [playerName, setPlayerName] = useLocalStorage(PLAYER_NAME_KEY, '');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const [showBonusAnnouncement, setShowBonusAnnouncement] = useState(false);
+  const prevBonusActive = useRef(false);
   
   const { playClick, playBonusClick, playBonusStart, playGameOver } = useClickSound();
+
+  // Show bonus announcement when bonus starts
+  useEffect(() => {
+    if (bonusActive && !prevBonusActive.current) {
+      setShowBonusAnnouncement(true);
+      setTimeout(() => setShowBonusAnnouncement(false), 1500);
+    }
+    prevBonusActive.current = bonusActive;
+  }, [bonusActive]);
 
   // Handle name submission
   const handleNameSubmit = (name) => {
@@ -172,6 +184,9 @@ function Game() {
           {/* Explosion effects */}
           <ExplosionFlash show={showExplosion} />
           <Particles show={showExplosion} />
+
+          {/* Bonus announcement */}
+          <BonusAnnouncement show={showBonusAnnouncement} />
 
           {/* Game Over overlay */}
           <GameOverOverlay 
