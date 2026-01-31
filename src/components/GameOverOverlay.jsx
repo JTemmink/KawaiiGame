@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 
-function GameOverOverlay({ show, score, highScore }) {
+function GameOverOverlay({ show, score, highScore, onShowLeaderboard }) {
   const isNewHighScore = score >= highScore && score > 0;
 
   return (
@@ -35,7 +35,7 @@ function GameOverOverlay({ show, score, highScore }) {
               Je was niet snel genoeg...
             </p>
 
-            <div className="bg-pink-light rounded-2xl p-4 mb-6">
+            <div className="bg-pink-light rounded-2xl p-4 mb-4">
               <p className="text-sm text-gray-500 uppercase tracking-wide">Score</p>
               <p className="text-4xl font-black text-pink-primary">{score}</p>
               
@@ -50,8 +50,18 @@ function GameOverOverlay({ show, score, highScore }) {
               )}
             </div>
 
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowLeaderboard();
+              }}
+              className="w-full py-2 mb-4 rounded-xl bg-gradient-to-r from-pink-primary to-pink-dark text-white font-bold hover:scale-105 transition-transform"
+            >
+              🏆 Bekijk Top 10
+            </button>
+
             <p className="text-gray-500 text-sm">
-              Tik om opnieuw te beginnen
+              Tik ergens anders om opnieuw te beginnen
             </p>
           </motion.div>
         </motion.div>
