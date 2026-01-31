@@ -30,7 +30,7 @@ export const SHOP_UPGRADES = [
     name: 'Double Tap',
     description: 'Elke klik telt als 2 kliks!',
     emoji: '✌️',
-    basePrice: 100,
+    basePrice: 150,
     effect: { type: 'click_multiplier', value: 2 },
   },
   {
@@ -38,7 +38,7 @@ export const SHOP_UPGRADES = [
     name: 'Slow Motion',
     description: 'Hartje krimpt 30% langzamer',
     emoji: '🐢',
-    basePrice: 150,
+    basePrice: 250,
     effect: { type: 'shrink_slow', value: 0.7 },
   },
   {
@@ -46,7 +46,7 @@ export const SHOP_UPGRADES = [
     name: 'Bonus Boost',
     description: 'Bonus duurt 4 seconden langer',
     emoji: '⏰',
-    basePrice: 200,
+    basePrice: 350,
     effect: { type: 'bonus_extend', value: 4 },
   },
   {
@@ -54,7 +54,7 @@ export const SHOP_UPGRADES = [
     name: 'Triple Bonus',
     description: '3x punten tijdens bonus (ipv 2x)',
     emoji: '🔥',
-    basePrice: 300,
+    basePrice: 500,
     effect: { type: 'bonus_multiplier', value: 3 },
   },
   {
@@ -62,7 +62,7 @@ export const SHOP_UPGRADES = [
     name: 'Auto Clicker',
     description: 'Automatisch 1 klik per seconde',
     emoji: '🤖',
-    basePrice: 500,
+    basePrice: 750,
     effect: { type: 'auto_click', value: 1 },
   },
   {
@@ -70,7 +70,7 @@ export const SHOP_UPGRADES = [
     name: 'Mega Explosion',
     description: 'Explosion geeft +50 bonus punten',
     emoji: '💥',
-    basePrice: 400,
+    basePrice: 600,
     effect: { type: 'explosion_bonus', value: 50 },
   },
 ];
@@ -90,63 +90,63 @@ export const SHOP_CHARACTERS = [
     name: 'Kitty Paw',
     description: 'Schattige kattenpootje',
     preview: '🐱',
-    price: 2500,
+    price: 150,
   },
   {
     id: 'bunny',
     name: 'Bunny Love',
     description: 'Lief konijntje',
     preview: '🐰',
-    price: 5000,
+    price: 300,
   },
   {
     id: 'panda',
     name: 'Panda Hug',
     description: 'Knuffelbare panda',
     preview: '🐼',
-    price: 10000,
+    price: 500,
   },
   {
     id: 'unicorn',
     name: 'Magic Unicorn',
     description: 'Magische eenhoorn',
     preview: '🦄',
-    price: 25000,
+    price: 1000,
   },
   {
     id: 'angel',
     name: 'Angel Baby',
     description: 'Hemelse engel',
     preview: '👼',
-    price: 50000,
+    price: 2500,
   },
   {
     id: 'fairy',
     name: 'Fairy Princess',
     description: 'Betoverende fee',
     preview: '🧚',
-    price: 100000,
+    price: 5000,
   },
   {
     id: 'star',
     name: 'Superstar',
     description: 'Schitterende ster',
     preview: '⭐',
-    price: 250000,
+    price: 10000,
   },
   {
     id: 'diamond',
     name: 'Diamond Queen',
     description: 'Zeldzame diamant',
     preview: '💎',
-    price: 500000,
+    price: 25000,
   },
   {
     id: 'rainbow',
     name: 'Rainbow Legend',
     description: 'Legendarische regenboog',
     preview: '🌈',
-    price: 1000000,
+    price: 50000,
   },
 ];
 
@@ -167,7 +167,7 @@ export const SHOP_HEARTS = [
     description: 'Vurig rood hart',
     preview: '❤️',
     color: '#FF0000',
-    price: 2500,
+    price: 150,
   },
   {
     id: 'orange_heart',
@@ -175,7 +175,7 @@ export const SHOP_HEARTS = [
     description: 'Warme zonsondergang',
     preview: '🧡',
     color: '#FF8C00',
-    price: 5000,
+    price: 300,
   },
   {
     id: 'yellow_heart',
@@ -183,7 +183,7 @@ export const SHOP_HEARTS = [
     description: 'Vrolijk geel',
     preview: '💛',
     color: '#FFD700',
-    price: 7500,
+    price: 500,
   },
   {
     id: 'green_heart',
@@ -191,7 +191,7 @@ export const SHOP_HEARTS = [
     description: 'Fris groen',
     preview: '💚',
     color: '#32CD32',
-    price: 10000,
+    price: 750,
   },
   {
     id: 'blue_heart',
@@ -199,7 +199,7 @@ export const SHOP_HEARTS = [
     description: 'Diepzee blauw',
     preview: '💙',
     color: '#1E90FF',
-    price: 15000,
+    price: 1000,
   },
   {
     id: 'purple_heart',
@@ -207,7 +207,7 @@ export const SHOP_HEARTS = [
     description: 'Koninklijk paars',
     preview: '💜',
     color: '#9370DB',
-    price: 25000,
+    price: 2500,
   },
   {
     id: 'black_heart',
@@ -215,7 +215,7 @@ export const SHOP_HEARTS = [
     description: 'Mysterieus zwart',
     preview: '🖤',
     color: '#2D2D2D',
-    price: 50000,
+    price: 5000,
   },
   {
     id: 'white_heart',
@@ -223,7 +223,7 @@ export const SHOP_HEARTS = [
     description: 'Puur en zuiver',
     preview: '🤍',
     color: '#FFFFFF',
-    price: 75000,
+    price: 10000,
   },
   {
     id: 'rainbow_heart',
@@ -231,7 +231,7 @@ export const SHOP_HEARTS = [
     description: 'Alle kleuren!',
     preview: '🌈',
     color: 'rainbow',
-    price: 500000,
+    price: 25000,
   },
 ];
 
