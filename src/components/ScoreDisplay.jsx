@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { NIVEAU_THRESHOLDS } from '../utils/constants';
 
-function ScoreDisplay({ score, highScore, bonusActive, level, niveau, coins, clicksToBonus, onOpenShop }) {
+function ScoreDisplay({ score = 0, highScore = 0, bonusActive, level = 1, niveau = 1, coins = 0, clicksToBonus = 50, onOpenShop }) {
   // Calculate progress to next niveau
   const currentThreshold = NIVEAU_THRESHOLDS[niveau - 1] || 0;
   const nextThreshold = NIVEAU_THRESHOLDS[niveau] || currentThreshold * 2;

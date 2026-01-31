@@ -232,7 +232,7 @@ function Game() {
               bonusActive={bonusActive}
               heartColor={heartColor}
             />
-            <ClickCounter clicks={clicks} bonusActive={bonusActive} />
+            <ClickCounter clicks={clicks} bonusActive={bonusActive} clicksToBonus={clicksToBonus} />
           </div>
 
           <div className="z-10">

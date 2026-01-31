@@ -1,7 +1,5 @@
-import { CLICKS_TO_EXPLOSION } from '../utils/constants';
-
-function ClickCounter({ clicks, bonusActive }) {
-  const progress = (clicks / CLICKS_TO_EXPLOSION) * 100;
+function ClickCounter({ clicks, bonusActive, clicksToBonus = 50 }) {
+  const progress = (clicks / clicksToBonus) * 100;
 
   return (
     <div className="text-center mt-6">
@@ -9,7 +7,7 @@ function ClickCounter({ clicks, bonusActive }) {
         <span className={`text-2xl ${bonusActive ? 'text-gold' : 'text-pink-primary'}`}>
           {clicks}
         </span>
-        <span>/{CLICKS_TO_EXPLOSION} kliks</span>
+        <span>/{clicksToBonus} kliks</span>
       </p>
       
       {/* Progress bar */}
