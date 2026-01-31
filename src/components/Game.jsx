@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { useClickSound } from '../hooks/useClickSound';
 import ScoreDisplay from './ScoreDisplay';
@@ -7,6 +7,7 @@ import ClickCounter from './ClickCounter';
 import BonusTimer from './BonusTimer';
 import FloatingPoint from './FloatingPoint';
 import Particles, { ExplosionFlash, ScreenShake } from './Particles';
+import GameOverOverlay from './GameOverOverlay';
 
 function Game() {
   const {
@@ -16,38 +17,55 @@ function Game() {
     bonusTimeLeft,
     highScore,
     showExplosion,
+    gameOver,
     heartScale,
     isShaking,
     isPulsing,
-    pointsPerClick,
     handleClick,
   } = useGameState();
 
   const [floatingPoints, setFloatingPoints] = useState([]);
   const [screenShake, setScreenShake] = useState(false);
-  const playClick = useClickSound();
+  const { playClick, playBonusClick, playBonusStart, playGameOver } = useClickSound();
+
+  // Play game over sound
+  useEffect(() => {
+    if (gameOver) {
+      playGameOver();
+    }
+  }, [gameOver, playGameOver]);
 
   const onTap = useCallback((event) => {
-    // Play click sound
-    playClick();
+    const result = handleClick();
+
+    // If it was game over, just restart - no sounds/effects
+    if (result.wasGameOver) return;
+
+    // Play appropriate click sound
+    if (result.isBonus) {
+      playBonusClick();
+    } else {
+      playClick();
+    }
 
     // Get click position
     const rect = event.target.getBoundingClientRect();
     const x = event.clientX || (event.touches?.[0]?.clientX ?? rect.left + rect.width / 2);
     const y = event.clientY || (event.touches?.[0]?.clientY ?? rect.top);
 
-    const result = handleClick();
-
     // Add floating point
-    const id = Date.now() + Math.random();
-    setFloatingPoints((prev) => [...prev, { id, x, y, points: result.points }]);
+    if (result.points > 0) {
+      const id = Date.now() + Math.random();
+      setFloatingPoints((prev) => [...prev, { id, x, y, points: result.points }]);
+    }
 
-    // Trigger screen shake on explosion
+    // Trigger screen shake and bonus sound on explosion
     if (result.triggered) {
       setScreenShake(true);
+      playBonusStart();
       setTimeout(() => setScreenShake(false), 300);
     }
-  }, [handleClick, playClick]);
+  }, [handleClick, playClick, playBonusClick, playBonusStart]);
 
   const removeFloatingPoint = useCallback((id) => {
     setFloatingPoints((prev) => prev.filter((p) => p.id !== id));
@@ -109,6 +127,9 @@ function Game() {
         {/* Explosion effects */}
         <ExplosionFlash show={showExplosion} />
         <Particles show={showExplosion} />
+
+        {/* Game Over overlay */}
+        <GameOverOverlay show={gameOver} score={score} highScore={highScore} />
       </div>
     </ScreenShake>
   );
