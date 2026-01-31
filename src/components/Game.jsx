@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { useClickSound } from '../hooks/useClickSound';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { submitHighscore, checkIfTopScore } from '../lib/supabase';
+import { submitHighscore, checkIfTopScore, getTopHighscores } from '../lib/supabase';
 import { PLAYER_NAME_KEY } from '../utils/constants';
 import ScoreDisplay from './ScoreDisplay';
 import KawaiiHand from './KawaiiHand';
@@ -15,6 +15,7 @@ import NameInputModal from './NameInputModal';
 import Leaderboard from './Leaderboard';
 import BonusAnnouncement from './BonusAnnouncement';
 import Shop from './Shop';
+import { NewHighScoreCelebration, RankUpCelebration, LevelUpCelebration } from './Celebrations';
 
 function Game() {
   const {
@@ -25,8 +26,13 @@ function Game() {
     highScore,
     coins,
     ownedUpgrades,
+    ownedCosmetics,
+    selectedCharacter,
+    selectedHeart,
     showExplosion,
     gameOver,
+    isNewHighScore,
+    showLevelUp,
     level,
     levelColors,
     heartScale,
@@ -35,6 +41,9 @@ function Game() {
     handleClick,
     resetGame,
     purchaseUpgrade,
+    purchaseCosmetic,
+    setSelectedCharacter,
+    setSelectedHeart,
   } = useGameState();
 
   const [floatingPoints, setFloatingPoints] = useState([]);
@@ -44,7 +53,11 @@ function Game() {
   const [showShop, setShowShop] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [showBonusAnnouncement, setShowBonusAnnouncement] = useState(false);
+  const [showHighScoreCelebration, setShowHighScoreCelebration] = useState(false);
+  const [rankUp, setRankUp] = useState({ show: false, newRank: 0, oldRank: 0 });
   const prevBonusActive = useRef(false);
+  const prevHighScoreRef = useRef(highScore);
+  const previousRankRef = useRef(null);
   
   const { playClick, playBonusClick, playBonusStart, playGameOver } = useClickSound();
 
@@ -57,20 +70,44 @@ function Game() {
     prevBonusActive.current = bonusActive;
   }, [bonusActive]);
 
+  // Show high score celebration
+  useEffect(() => {
+    if (isNewHighScore && score > prevHighScoreRef.current && !showHighScoreCelebration) {
+      setShowHighScoreCelebration(true);
+      setTimeout(() => setShowHighScoreCelebration(false), 3000);
+    }
+    prevHighScoreRef.current = highScore;
+  }, [isNewHighScore, score, highScore, showHighScoreCelebration]);
+
   // Handle name submission
   const handleNameSubmit = (name) => {
     setPlayerName(name);
   };
 
-  // Submit score when game over
+  // Submit score and check rank when game over
   useEffect(() => {
     if (gameOver && playerName && score > 0 && !scoreSubmitted) {
       playGameOver();
       
+      // Get current rank before submitting
+      getTopHighscores().then((scores) => {
+        const currentRank = scores.findIndex(s => s.player_name === playerName) + 1;
+        previousRankRef.current = currentRank > 0 ? currentRank : 11;
+      });
+      
       // Check if score qualifies for top 10 and submit
       checkIfTopScore(score).then((qualifies) => {
         if (qualifies) {
-          submitHighscore(playerName, score, level);
+          submitHighscore(playerName, score, level).then(() => {
+            // Check new rank after submitting
+            getTopHighscores().then((scores) => {
+              const newRank = scores.findIndex(s => s.player_name === playerName && s.score === score) + 1;
+              if (newRank > 0 && newRank < previousRankRef.current) {
+                setRankUp({ show: true, newRank, oldRank: previousRankRef.current });
+                setTimeout(() => setRankUp({ show: false, newRank: 0, oldRank: 0 }), 4000);
+              }
+            });
+          });
         }
       });
       setScoreSubmitted(true);
@@ -81,34 +118,30 @@ function Game() {
   useEffect(() => {
     if (!gameOver) {
       setScoreSubmitted(false);
+      setShowHighScoreCelebration(false);
     }
   }, [gameOver]);
 
   const onTap = useCallback((event) => {
     const result = handleClick();
 
-    // If it was game over, just restart - no sounds/effects
     if (result.wasGameOver) return;
 
-    // Play appropriate click sound
     if (result.isBonus) {
       playBonusClick();
     } else {
       playClick();
     }
 
-    // Get click position
     const rect = event.target.getBoundingClientRect();
     const x = event.clientX || (event.touches?.[0]?.clientX ?? rect.left + rect.width / 2);
     const y = event.clientY || (event.touches?.[0]?.clientY ?? rect.top);
 
-    // Add floating point
     if (result.points > 0) {
       const id = Date.now() + Math.random();
       setFloatingPoints((prev) => [...prev, { id, x, y, points: result.points }]);
     }
 
-    // Trigger screen shake and bonus sound on explosion
     if (result.triggered) {
       setScreenShake(true);
       playBonusStart();
@@ -120,13 +153,16 @@ function Game() {
     setFloatingPoints((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const handlePurchase = useCallback((item) => {
-    purchaseUpgrade(item);
+  const handlePurchaseUpgrade = useCallback((item, price) => {
+    purchaseUpgrade(item, price);
   }, [purchaseUpgrade]);
+
+  const handlePurchaseCosmetic = useCallback((type, item) => {
+    purchaseCosmetic(type, item);
+  }, [purchaseCosmetic]);
 
   return (
     <>
-      {/* Name input modal - only shows once */}
       <NameInputModal show={!playerName} onSubmit={handleNameSubmit} />
 
       <ScreenShake shake={screenShake}>
@@ -138,7 +174,6 @@ function Game() {
               : `linear-gradient(to bottom right, ${levelColors.from}, ${levelColors.to})`,
           }}
         >
-          {/* Bonus mode glow overlay */}
           {bonusActive && (
             <div 
               className="fixed inset-0 pointer-events-none animate-glow-pulse z-0"
@@ -148,7 +183,6 @@ function Game() {
             />
           )}
 
-          {/* Leaderboard button */}
           <button
             onClick={() => setShowLeaderboard(true)}
             className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/80 shadow-lg hover:bg-white transition-colors"
@@ -156,7 +190,6 @@ function Game() {
             🏆
           </button>
 
-          {/* Score + Level */}
           <div className="z-10">
             <ScoreDisplay 
               score={score} 
@@ -168,7 +201,6 @@ function Game() {
             />
           </div>
 
-          {/* Game area */}
           <div className="flex-1 flex flex-col items-center justify-center z-10">
             <KawaiiHand
               onTap={onTap}
@@ -176,16 +208,16 @@ function Game() {
               isShaking={isShaking}
               isPulsing={isPulsing}
               bonusActive={bonusActive}
+              selectedCharacter={selectedCharacter}
+              selectedHeart={selectedHeart}
             />
             <ClickCounter clicks={clicks} bonusActive={bonusActive} />
           </div>
 
-          {/* Bonus timer */}
           <div className="z-10">
             <BonusTimer active={bonusActive} timeLeft={bonusTimeLeft} />
           </div>
 
-          {/* Floating points */}
           {floatingPoints.map((fp) => (
             <FloatingPoint
               key={fp.id}
@@ -197,19 +229,17 @@ function Game() {
             />
           ))}
 
-          {/* Explosion effects */}
           <ExplosionFlash show={showExplosion} />
           <Particles show={showExplosion} />
-
-          {/* Bonus announcement */}
           <BonusAnnouncement show={showBonusAnnouncement} />
+          <NewHighScoreCelebration show={showHighScoreCelebration} />
+          <RankUpCelebration show={rankUp.show} newRank={rankUp.newRank} oldRank={rankUp.oldRank} />
+          <LevelUpCelebration show={showLevelUp} level={level} />
 
-          {/* Game Over overlay */}
           <GameOverOverlay 
             show={gameOver} 
             score={score} 
             highScore={highScore}
-            coins={coins}
             earnedCoins={Math.floor(score * 0.1)}
             onShowLeaderboard={() => setShowLeaderboard(true)}
             onRestart={resetGame}
@@ -217,20 +247,25 @@ function Game() {
         </div>
       </ScreenShake>
 
-      {/* Leaderboard modal */}
       <Leaderboard 
         show={showLeaderboard} 
         onClose={() => setShowLeaderboard(false)}
         currentPlayerName={playerName}
       />
 
-      {/* Shop modal */}
       <Shop
         show={showShop}
         onClose={() => setShowShop(false)}
         coins={coins}
+        level={level}
         ownedUpgrades={ownedUpgrades}
-        onPurchase={handlePurchase}
+        ownedCosmetics={ownedCosmetics}
+        selectedCharacter={selectedCharacter}
+        selectedHeart={selectedHeart}
+        onPurchaseUpgrade={handlePurchaseUpgrade}
+        onPurchaseCosmetic={handlePurchaseCosmetic}
+        onSelectCharacter={setSelectedCharacter}
+        onSelectHeart={setSelectedHeart}
       />
     </>
   );

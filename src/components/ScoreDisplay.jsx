@@ -73,14 +73,20 @@ function ScoreDisplay({ score, highScore, bonusActive, level, coins, onOpenShop 
           <span className="text-sm font-black text-pink-primary">{highScore.toLocaleString()}</span>
         </div>
         
-        {/* Coins / Shop button */}
-        <button
+        {/* Coins / Shop button - BIGGER */}
+        <motion.button
           onClick={onOpenShop}
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 shadow-md hover:scale-105 transition-transform"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 shadow-lg hover:shadow-xl transition-shadow"
+          style={{
+            boxShadow: '0 4px 15px rgba(255, 193, 7, 0.4)',
+          }}
         >
-          <span className="text-sm">💰</span>
-          <span className="text-sm font-black text-white">{coins.toLocaleString()}</span>
-        </button>
+          <span className="text-xl">💰</span>
+          <span className="text-lg font-black text-white">{coins.toLocaleString()}</span>
+          <span className="text-lg">🛍️</span>
+        </motion.button>
       </div>
     </div>
   );

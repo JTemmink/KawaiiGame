@@ -11,13 +11,17 @@ import {
   HIGH_SCORE_KEY,
   COINS_KEY,
   UPGRADES_KEY,
+  COSMETICS_KEY,
+  SELECTED_CHARACTER_KEY,
+  SELECTED_HEART_KEY,
   BASE_SHRINK_INTERVAL_MS,
   SHRINK_AMOUNT,
   SPEED_INCREASE_THRESHOLD,
   SPEED_INCREASE_FACTOR,
   MIN_SHRINK_INTERVAL_MS,
   LEVEL_COLORS,
-  SHOP_ITEMS,
+  SHOP_UPGRADES,
+  PRICE_MULTIPLIER_PER_LEVEL,
 } from '../utils/constants';
 
 export function useGameState() {
@@ -28,17 +32,23 @@ export function useGameState() {
   const [highScore, setHighScore] = useLocalStorage(HIGH_SCORE_KEY, 0);
   const [coins, setCoins] = useLocalStorage(COINS_KEY, 0);
   const [ownedUpgrades, setOwnedUpgrades] = useLocalStorage(UPGRADES_KEY, []);
+  const [ownedCosmetics, setOwnedCosmetics] = useLocalStorage(COSMETICS_KEY, []);
+  const [selectedCharacter, setSelectedCharacter] = useLocalStorage(SELECTED_CHARACTER_KEY, 'default_hand');
+  const [selectedHeart, setSelectedHeart] = useLocalStorage(SELECTED_HEART_KEY, 'default_heart');
   const [showExplosion, setShowExplosion] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const [showLevelUp, setShowLevelUp] = useState(false);
 
   const bonusIntervalRef = useRef(null);
   const shrinkIntervalRef = useRef(null);
   const autoClickIntervalRef = useRef(null);
   const lastClickTimeRef = useRef(Date.now());
+  const previousLevelRef = useRef(1);
 
   // Get upgrade effect value
   const getUpgradeValue = useCallback((effectType, defaultValue) => {
-    const upgrade = SHOP_ITEMS.find(
+    const upgrade = SHOP_UPGRADES.find(
       item => ownedUpgrades.includes(item.id) && item.effect.type === effectType
     );
     return upgrade ? upgrade.effect.value : defaultValue;
@@ -56,7 +66,7 @@ export function useGameState() {
   const getShrinkInterval = useCallback((currentScore) => {
     const speedLevel = Math.floor(currentScore / SPEED_INCREASE_THRESHOLD);
     const baseInterval = BASE_SHRINK_INTERVAL_MS * Math.pow(SPEED_INCREASE_FACTOR, speedLevel);
-    const interval = baseInterval / shrinkSlowFactor; // Slow shrink upgrade
+    const interval = baseInterval / shrinkSlowFactor;
     return Math.max(interval, MIN_SHRINK_INTERVAL_MS);
   }, [shrinkSlowFactor]);
 
@@ -68,15 +78,45 @@ export function useGameState() {
   const isPulsing = clicks >= PULSE_THRESHOLD;
   const pointsPerClick = bonusActive ? bonusMultiplier : 1;
 
+  // Check for level up
+  useEffect(() => {
+    if (level > previousLevelRef.current && score > 0) {
+      setShowLevelUp(true);
+      setTimeout(() => setShowLevelUp(false), 2000);
+    }
+    previousLevelRef.current = level;
+  }, [level, score]);
+
+  // Get scaled price for upgrades
+  const getScaledPrice = useCallback((basePrice) => {
+    return Math.floor(basePrice * Math.pow(PRICE_MULTIPLIER_PER_LEVEL, level - 1));
+  }, [level]);
+
   // Purchase upgrade
-  const purchaseUpgrade = useCallback((item) => {
-    if (coins >= item.price && !ownedUpgrades.includes(item.id)) {
-      setCoins(coins - item.price);
+  const purchaseUpgrade = useCallback((item, price) => {
+    if (coins >= price && !ownedUpgrades.includes(item.id)) {
+      setCoins(coins - price);
       setOwnedUpgrades([...ownedUpgrades, item.id]);
       return true;
     }
     return false;
   }, [coins, ownedUpgrades, setCoins, setOwnedUpgrades]);
+
+  // Purchase cosmetic
+  const purchaseCosmetic = useCallback((type, item) => {
+    if (coins >= item.price && !ownedCosmetics.includes(item.id)) {
+      setCoins(coins - item.price);
+      setOwnedCosmetics([...ownedCosmetics, item.id]);
+      // Auto-select after purchase
+      if (type === 'character') {
+        setSelectedCharacter(item.id);
+      } else if (type === 'heart') {
+        setSelectedHeart(item.id);
+      }
+      return true;
+    }
+    return false;
+  }, [coins, ownedCosmetics, setCoins, setOwnedCosmetics, setSelectedCharacter, setSelectedHeart]);
 
   // Reset game
   const resetGame = useCallback(() => {
@@ -85,18 +125,20 @@ export function useGameState() {
     setBonusActive(false);
     setBonusTimeLeft(0);
     setGameOver(false);
+    setIsNewHighScore(false);
     lastClickTimeRef.current = Date.now();
+    previousLevelRef.current = 1;
   }, []);
 
   // Start bonus mode
   const startBonusMode = useCallback(() => {
-    if (bonusActive) return; // Don't reset if already active
+    if (bonusActive) return;
     
     setBonusActive(true);
     setBonusTimeLeft(BONUS_DURATION_SECONDS + bonusExtend);
   }, [bonusActive, bonusExtend]);
 
-  // Bonus timer countdown - reset clicks to 0 when bonus ends
+  // Bonus timer countdown
   useEffect(() => {
     if (!bonusActive) return;
 
@@ -104,7 +146,7 @@ export function useGameState() {
       setBonusTimeLeft((prev) => {
         if (prev <= 1) {
           setBonusActive(false);
-          setClicks(0); // Reset clicks when bonus ends
+          setClicks(0);
           return 0;
         }
         return prev - 1;
@@ -138,6 +180,7 @@ export function useGameState() {
         const newScore = prev + (bonusActive ? bonusMultiplier : 1);
         if (newScore > highScore) {
           setHighScore(newScore);
+          setIsNewHighScore(true);
         }
         return newScore;
       });
@@ -150,7 +193,7 @@ export function useGameState() {
     };
   }, [autoClickRate, gameOver, bonusActive, bonusMultiplier, highScore, setHighScore, startBonusMode]);
 
-  // Shrink mechanic - heart shrinks if you don't click fast enough
+  // Shrink mechanic
   useEffect(() => {
     if (gameOver) return;
 
@@ -163,7 +206,6 @@ export function useGameState() {
         setClicks((prev) => {
           const newClicks = Math.max(0, prev - SHRINK_AMOUNT);
           
-          // Game over if clicks reach 0 and we had some progress
           if (newClicks === 0 && score > 0) {
             setGameOver(true);
           }
@@ -174,7 +216,6 @@ export function useGameState() {
       }
     };
 
-    // Check more frequently than the shrink interval
     shrinkIntervalRef.current = setInterval(checkShrink, 100);
 
     return () => {
@@ -201,16 +242,19 @@ export function useGameState() {
 
     lastClickTimeRef.current = Date.now();
     
-    const clicksToAdd = clickMultiplier; // Double tap upgrade
+    const clicksToAdd = clickMultiplier;
     const newClicks = clicks + clicksToAdd;
     const newScore = score + pointsPerClick;
 
     setScore(newScore);
-    setClicks(Math.min(newClicks, CLICKS_TO_EXPLOSION)); // Cap at explosion threshold
+    setClicks(Math.min(newClicks, CLICKS_TO_EXPLOSION));
 
-    // Update high score
+    // Check for new high score
     if (newScore > highScore) {
       setHighScore(newScore);
+      if (!isNewHighScore) {
+        setIsNewHighScore(true);
+      }
     }
 
     // Check for explosion
@@ -219,19 +263,17 @@ export function useGameState() {
       setClicks(0);
       startBonusMode();
       
-      // Add explosion bonus points
       if (explosionBonus > 0) {
         setScore((prev) => prev + explosionBonus);
       }
       
-      // Hide explosion after animation
       setTimeout(() => setShowExplosion(false), 600);
       
       return { points: pointsPerClick, triggered: true, isBonus: bonusActive, wasGameOver: false };
     }
 
     return { points: pointsPerClick, triggered: false, isBonus: bonusActive, wasGameOver: false };
-  }, [clicks, score, pointsPerClick, highScore, setHighScore, startBonusMode, bonusActive, gameOver, resetGame, clickMultiplier, explosionBonus]);
+  }, [clicks, score, pointsPerClick, highScore, setHighScore, startBonusMode, bonusActive, gameOver, resetGame, clickMultiplier, explosionBonus, isNewHighScore]);
 
   return {
     // State
@@ -242,8 +284,13 @@ export function useGameState() {
     highScore,
     coins,
     ownedUpgrades,
+    ownedCosmetics,
+    selectedCharacter,
+    selectedHeart,
     showExplosion,
     gameOver,
+    isNewHighScore,
+    showLevelUp,
     
     // Computed
     level,
@@ -258,5 +305,9 @@ export function useGameState() {
     handleClick,
     resetGame,
     purchaseUpgrade,
+    purchaseCosmetic,
+    setSelectedCharacter,
+    setSelectedHeart,
+    getScaledPrice,
   };
 }
