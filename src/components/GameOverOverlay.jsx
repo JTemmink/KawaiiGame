@@ -1,16 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion';
 
-function GameOverOverlay({ show, score, highScore, onShowLeaderboard }) {
+function GameOverOverlay({ show, score, highScore, onShowLeaderboard, onRestart }) {
   const isNewHighScore = score >= highScore && score > 0;
 
   return (
     <AnimatePresence>
       {show && (
         <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 cursor-pointer"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onClick={onRestart}
         >
           <motion.div
             className="bg-white rounded-3xl p-8 mx-4 text-center shadow-2xl max-w-sm"
@@ -18,6 +19,7 @@ function GameOverOverlay({ show, score, highScore, onShowLeaderboard }) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ type: 'spring', damping: 20 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <motion.p
               className="text-6xl mb-4"
@@ -55,13 +57,20 @@ function GameOverOverlay({ show, score, highScore, onShowLeaderboard }) {
                 e.stopPropagation();
                 onShowLeaderboard();
               }}
-              className="w-full py-2 mb-4 rounded-xl bg-gradient-to-r from-pink-primary to-pink-dark text-white font-bold hover:scale-105 transition-transform"
+              className="w-full py-2 mb-2 rounded-xl bg-gradient-to-r from-pink-primary to-pink-dark text-white font-bold hover:scale-105 transition-transform"
             >
               🏆 Bekijk Top 10
             </button>
 
-            <p className="text-gray-500 text-sm">
-              Tik ergens anders om opnieuw te beginnen
+            <button
+              onClick={onRestart}
+              className="w-full py-2 mb-4 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 transition-colors"
+            >
+              🔄 Opnieuw Spelen
+            </button>
+
+            <p className="text-gray-400 text-xs">
+              Of tik buiten dit venster
             </p>
           </motion.div>
         </motion.div>

@@ -29,6 +29,7 @@ function Game() {
     isShaking,
     isPulsing,
     handleClick,
+    resetGame,
   } = useGameState();
 
   const [floatingPoints, setFloatingPoints] = useState([]);
@@ -178,6 +179,7 @@ function Game() {
             score={score} 
             highScore={highScore}
             onShowLeaderboard={() => setShowLeaderboard(true)}
+            onRestart={resetGame}
           />
         </div>
       </ScreenShake>
