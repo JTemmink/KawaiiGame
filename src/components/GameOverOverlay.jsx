@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 
-function GameOverOverlay({ show, score, highScore, onShowLeaderboard, onRestart }) {
+function GameOverOverlay({ show, score, highScore, earnedCoins, onShowLeaderboard, onRestart }) {
   const isNewHighScore = score >= highScore && score > 0;
 
   return (
@@ -37,9 +37,9 @@ function GameOverOverlay({ show, score, highScore, onShowLeaderboard, onRestart 
               Je was niet snel genoeg...
             </p>
 
-            <div className="bg-pink-light rounded-2xl p-4 mb-4">
+            <div className="bg-pink-light rounded-2xl p-4 mb-3">
               <p className="text-sm text-gray-500 uppercase tracking-wide">Score</p>
-              <p className="text-4xl font-black text-pink-primary">{score}</p>
+              <p className="text-4xl font-black text-pink-primary">{score.toLocaleString()}</p>
               
               {isNewHighScore && (
                 <motion.p
@@ -51,6 +51,18 @@ function GameOverOverlay({ show, score, highScore, onShowLeaderboard, onRestart 
                 </motion.p>
               )}
             </div>
+
+            {/* Earned coins */}
+            <motion.div 
+              className="flex items-center justify-center gap-2 mb-4 py-2 px-4 rounded-full bg-gradient-to-r from-yellow-100 to-amber-100"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: 'spring' }}
+            >
+              <span className="text-xl">💰</span>
+              <span className="font-black text-amber-600">+{earnedCoins}</span>
+              <span className="text-sm text-amber-600">coins verdiend!</span>
+            </motion.div>
 
             <button
               onClick={(e) => {

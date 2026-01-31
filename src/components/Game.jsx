@@ -14,6 +14,7 @@ import GameOverOverlay from './GameOverOverlay';
 import NameInputModal from './NameInputModal';
 import Leaderboard from './Leaderboard';
 import BonusAnnouncement from './BonusAnnouncement';
+import Shop from './Shop';
 
 function Game() {
   const {
@@ -22,6 +23,8 @@ function Game() {
     bonusActive,
     bonusTimeLeft,
     highScore,
+    coins,
+    ownedUpgrades,
     showExplosion,
     gameOver,
     level,
@@ -31,12 +34,14 @@ function Game() {
     isPulsing,
     handleClick,
     resetGame,
+    purchaseUpgrade,
   } = useGameState();
 
   const [floatingPoints, setFloatingPoints] = useState([]);
   const [screenShake, setScreenShake] = useState(false);
   const [playerName, setPlayerName] = useLocalStorage(PLAYER_NAME_KEY, '');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showShop, setShowShop] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [showBonusAnnouncement, setShowBonusAnnouncement] = useState(false);
   const prevBonusActive = useRef(false);
@@ -115,6 +120,10 @@ function Game() {
     setFloatingPoints((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  const handlePurchase = useCallback((item) => {
+    purchaseUpgrade(item);
+  }, [purchaseUpgrade]);
+
   return (
     <>
       {/* Name input modal - only shows once */}
@@ -149,7 +158,14 @@ function Game() {
 
           {/* Score + Level */}
           <div className="z-10">
-            <ScoreDisplay score={score} highScore={highScore} bonusActive={bonusActive} level={level} />
+            <ScoreDisplay 
+              score={score} 
+              highScore={highScore} 
+              bonusActive={bonusActive} 
+              level={level}
+              coins={coins}
+              onOpenShop={() => setShowShop(true)}
+            />
           </div>
 
           {/* Game area */}
@@ -193,6 +209,8 @@ function Game() {
             show={gameOver} 
             score={score} 
             highScore={highScore}
+            coins={coins}
+            earnedCoins={Math.floor(score * 0.1)}
             onShowLeaderboard={() => setShowLeaderboard(true)}
             onRestart={resetGame}
           />
@@ -204,6 +222,15 @@ function Game() {
         show={showLeaderboard} 
         onClose={() => setShowLeaderboard(false)}
         currentPlayerName={playerName}
+      />
+
+      {/* Shop modal */}
+      <Shop
+        show={showShop}
+        onClose={() => setShowShop(false)}
+        coins={coins}
+        ownedUpgrades={ownedUpgrades}
+        onPurchase={handlePurchase}
       />
     </>
   );

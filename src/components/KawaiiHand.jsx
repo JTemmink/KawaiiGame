@@ -27,15 +27,16 @@ function KawaiiHand({ onTap, heartScale, isShaking, isPulsing, bonusActive }) {
         bonusActive={bonusActive}
       />
 
-      {/* The hand image */}
+      {/* The hand image - with white background removed */}
       <img
         src="/Kawaii hand.jpg"
         alt="Kawaii Hand"
-        className="w-48 h-auto relative z-0 pointer-events-none"
+        className="w-48 h-auto relative z-0 pointer-events-none rounded-3xl"
         style={{
           filter: bonusActive 
             ? 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.5))' 
             : 'drop-shadow(0 8px 24px rgba(255, 105, 180, 0.3))',
+          mixBlendMode: 'multiply',
         }}
         draggable={false}
       />

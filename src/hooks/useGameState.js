@@ -9,12 +9,15 @@ import {
   SHAKE_THRESHOLD,
   PULSE_THRESHOLD,
   HIGH_SCORE_KEY,
+  COINS_KEY,
+  UPGRADES_KEY,
   BASE_SHRINK_INTERVAL_MS,
   SHRINK_AMOUNT,
   SPEED_INCREASE_THRESHOLD,
   SPEED_INCREASE_FACTOR,
   MIN_SHRINK_INTERVAL_MS,
   LEVEL_COLORS,
+  SHOP_ITEMS,
 } from '../utils/constants';
 
 export function useGameState() {
@@ -23,19 +26,39 @@ export function useGameState() {
   const [bonusActive, setBonusActive] = useState(false);
   const [bonusTimeLeft, setBonusTimeLeft] = useState(0);
   const [highScore, setHighScore] = useLocalStorage(HIGH_SCORE_KEY, 0);
+  const [coins, setCoins] = useLocalStorage(COINS_KEY, 0);
+  const [ownedUpgrades, setOwnedUpgrades] = useLocalStorage(UPGRADES_KEY, []);
   const [showExplosion, setShowExplosion] = useState(false);
   const [gameOver, setGameOver] = useState(false);
 
   const bonusIntervalRef = useRef(null);
   const shrinkIntervalRef = useRef(null);
+  const autoClickIntervalRef = useRef(null);
   const lastClickTimeRef = useRef(Date.now());
 
-  // Calculate shrink interval based on score
+  // Get upgrade effect value
+  const getUpgradeValue = useCallback((effectType, defaultValue) => {
+    const upgrade = SHOP_ITEMS.find(
+      item => ownedUpgrades.includes(item.id) && item.effect.type === effectType
+    );
+    return upgrade ? upgrade.effect.value : defaultValue;
+  }, [ownedUpgrades]);
+
+  // Computed upgrade effects
+  const clickMultiplier = getUpgradeValue('click_multiplier', 1);
+  const shrinkSlowFactor = getUpgradeValue('shrink_slow', 1);
+  const bonusExtend = getUpgradeValue('bonus_extend', 0);
+  const bonusMultiplier = getUpgradeValue('bonus_multiplier', BONUS_MULTIPLIER);
+  const autoClickRate = getUpgradeValue('auto_click', 0);
+  const explosionBonus = getUpgradeValue('explosion_bonus', 0);
+
+  // Calculate shrink interval based on score and upgrades
   const getShrinkInterval = useCallback((currentScore) => {
     const speedLevel = Math.floor(currentScore / SPEED_INCREASE_THRESHOLD);
-    const interval = BASE_SHRINK_INTERVAL_MS * Math.pow(SPEED_INCREASE_FACTOR, speedLevel);
+    const baseInterval = BASE_SHRINK_INTERVAL_MS * Math.pow(SPEED_INCREASE_FACTOR, speedLevel);
+    const interval = baseInterval / shrinkSlowFactor; // Slow shrink upgrade
     return Math.max(interval, MIN_SHRINK_INTERVAL_MS);
-  }, []);
+  }, [shrinkSlowFactor]);
 
   // Computed values
   const level = Math.floor(score / SPEED_INCREASE_THRESHOLD) + 1;
@@ -43,7 +66,17 @@ export function useGameState() {
   const heartScale = HEART_MIN_SCALE + (clicks / CLICKS_TO_EXPLOSION) * (HEART_MAX_SCALE - HEART_MIN_SCALE);
   const isShaking = clicks >= SHAKE_THRESHOLD && clicks < PULSE_THRESHOLD;
   const isPulsing = clicks >= PULSE_THRESHOLD;
-  const pointsPerClick = bonusActive ? BONUS_MULTIPLIER : 1;
+  const pointsPerClick = bonusActive ? bonusMultiplier : 1;
+
+  // Purchase upgrade
+  const purchaseUpgrade = useCallback((item) => {
+    if (coins >= item.price && !ownedUpgrades.includes(item.id)) {
+      setCoins(coins - item.price);
+      setOwnedUpgrades([...ownedUpgrades, item.id]);
+      return true;
+    }
+    return false;
+  }, [coins, ownedUpgrades, setCoins, setOwnedUpgrades]);
 
   // Reset game
   const resetGame = useCallback(() => {
@@ -60,8 +93,8 @@ export function useGameState() {
     if (bonusActive) return; // Don't reset if already active
     
     setBonusActive(true);
-    setBonusTimeLeft(BONUS_DURATION_SECONDS);
-  }, [bonusActive]);
+    setBonusTimeLeft(BONUS_DURATION_SECONDS + bonusExtend);
+  }, [bonusActive, bonusExtend]);
 
   // Bonus timer countdown - reset clicks to 0 when bonus ends
   useEffect(() => {
@@ -84,6 +117,38 @@ export function useGameState() {
       }
     };
   }, [bonusActive]);
+
+  // Auto clicker upgrade
+  useEffect(() => {
+    if (autoClickRate <= 0 || gameOver) return;
+
+    autoClickIntervalRef.current = setInterval(() => {
+      lastClickTimeRef.current = Date.now();
+      setClicks((prev) => {
+        const newClicks = prev + 1;
+        if (newClicks >= CLICKS_TO_EXPLOSION) {
+          setShowExplosion(true);
+          startBonusMode();
+          setTimeout(() => setShowExplosion(false), 600);
+          return 0;
+        }
+        return newClicks;
+      });
+      setScore((prev) => {
+        const newScore = prev + (bonusActive ? bonusMultiplier : 1);
+        if (newScore > highScore) {
+          setHighScore(newScore);
+        }
+        return newScore;
+      });
+    }, 1000 / autoClickRate);
+
+    return () => {
+      if (autoClickIntervalRef.current) {
+        clearInterval(autoClickIntervalRef.current);
+      }
+    };
+  }, [autoClickRate, gameOver, bonusActive, bonusMultiplier, highScore, setHighScore, startBonusMode]);
 
   // Shrink mechanic - heart shrinks if you don't click fast enough
   useEffect(() => {
@@ -119,6 +184,14 @@ export function useGameState() {
     };
   }, [score, gameOver, getShrinkInterval]);
 
+  // Award coins on game over (10% of score)
+  useEffect(() => {
+    if (gameOver && score > 0) {
+      const earnedCoins = Math.floor(score * 0.1);
+      setCoins((prev) => prev + earnedCoins);
+    }
+  }, [gameOver, score, setCoins]);
+
   // Handle click
   const handleClick = useCallback(() => {
     if (gameOver) {
@@ -128,11 +201,12 @@ export function useGameState() {
 
     lastClickTimeRef.current = Date.now();
     
-    const newClicks = clicks + 1;
+    const clicksToAdd = clickMultiplier; // Double tap upgrade
+    const newClicks = clicks + clicksToAdd;
     const newScore = score + pointsPerClick;
 
     setScore(newScore);
-    setClicks(newClicks);
+    setClicks(Math.min(newClicks, CLICKS_TO_EXPLOSION)); // Cap at explosion threshold
 
     // Update high score
     if (newScore > highScore) {
@@ -145,6 +219,11 @@ export function useGameState() {
       setClicks(0);
       startBonusMode();
       
+      // Add explosion bonus points
+      if (explosionBonus > 0) {
+        setScore((prev) => prev + explosionBonus);
+      }
+      
       // Hide explosion after animation
       setTimeout(() => setShowExplosion(false), 600);
       
@@ -152,7 +231,7 @@ export function useGameState() {
     }
 
     return { points: pointsPerClick, triggered: false, isBonus: bonusActive, wasGameOver: false };
-  }, [clicks, score, pointsPerClick, highScore, setHighScore, startBonusMode, bonusActive, gameOver, resetGame]);
+  }, [clicks, score, pointsPerClick, highScore, setHighScore, startBonusMode, bonusActive, gameOver, resetGame, clickMultiplier, explosionBonus]);
 
   return {
     // State
@@ -161,6 +240,8 @@ export function useGameState() {
     bonusActive,
     bonusTimeLeft,
     highScore,
+    coins,
+    ownedUpgrades,
     showExplosion,
     gameOver,
     
@@ -176,5 +257,6 @@ export function useGameState() {
     // Actions
     handleClick,
     resetGame,
+    purchaseUpgrade,
   };
 }

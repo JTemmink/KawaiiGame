@@ -1,20 +1,40 @@
 import { motion } from 'framer-motion';
 
-function ScoreDisplay({ score, highScore, bonusActive, level }) {
+function ScoreDisplay({ score, highScore, bonusActive, level, coins, onOpenShop }) {
   return (
     <div className="text-center">
-      {/* Level badge */}
+      {/* Game title */}
+      <motion.h1
+        className="text-2xl font-black mb-2"
+        style={{
+          background: 'linear-gradient(135deg, #FF69B4 0%, #FF1493 50%, #FF69B4 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          textShadow: '0 2px 10px rgba(255, 105, 180, 0.3)',
+        }}
+      >
+        ✨ Kawaii Clicker ✨
+      </motion.h1>
+
+      {/* Level badge - more prominent */}
       <motion.div
         key={level}
         initial={{ scale: 1.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className={`inline-block px-4 py-1 rounded-full mb-2 font-bold text-sm ${
+        className={`inline-flex items-center gap-2 px-5 py-2 rounded-full mb-3 font-black text-lg shadow-lg ${
           bonusActive 
-            ? 'bg-gold/30 text-amber-700' 
-            : 'bg-pink-primary/20 text-pink-dark'
+            ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white' 
+            : 'bg-gradient-to-r from-pink-400 to-pink-600 text-white'
         }`}
+        style={{
+          boxShadow: bonusActive
+            ? '0 4px 15px rgba(255, 215, 0, 0.5)'
+            : '0 4px 15px rgba(255, 105, 180, 0.4)',
+        }}
       >
-        ⭐ Level {level}
+        <span className="text-xl">⭐</span>
+        <span>Level {level}</span>
+        <span className="text-xl">⭐</span>
       </motion.div>
 
       {/* Score label */}
@@ -46,10 +66,21 @@ function ScoreDisplay({ score, highScore, bonusActive, level }) {
         </motion.p>
       </div>
 
-      {/* High score */}
-      <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 backdrop-blur-sm">
-        <span className="text-xs text-gray-500">🏆 Best:</span>
-        <span className="text-sm font-black text-pink-primary">{highScore.toLocaleString()}</span>
+      {/* High score and Coins row */}
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 backdrop-blur-sm">
+          <span className="text-xs text-gray-500">🏆</span>
+          <span className="text-sm font-black text-pink-primary">{highScore.toLocaleString()}</span>
+        </div>
+        
+        {/* Coins / Shop button */}
+        <button
+          onClick={onOpenShop}
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 shadow-md hover:scale-105 transition-transform"
+        >
+          <span className="text-sm">💰</span>
+          <span className="text-sm font-black text-white">{coins.toLocaleString()}</span>
+        </button>
       </div>
     </div>
   );
